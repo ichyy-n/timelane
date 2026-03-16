@@ -120,10 +120,6 @@ export default function TaskList({
               ) : (
                 <span className="tree-toggle-placeholder" />
               )}
-              <span
-                className="task-color-dot"
-                style={{ backgroundColor: colorMode ? task.color : "#333333" }}
-              />
               {task.name}
             </span>
             <span className="col-assignee">{task.assignee}</span>
