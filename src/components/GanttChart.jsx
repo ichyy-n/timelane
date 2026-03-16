@@ -129,7 +129,7 @@ export default function GanttChart({
       </div>
 
       {/* Rows */}
-      <div className="gantt-body" style={{ width: months.length * CELL_WIDTH }}>
+      <div className="gantt-body" style={{ width: months.length * CELL_WIDTH, height: displayRows.length * ROW_HEIGHT }}>
         {/* Grid lines */}
         <div className="gantt-grid">
           {months.map((_, i) => (

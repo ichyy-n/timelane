@@ -310,7 +310,7 @@ body {
 
 .gantt-body {
   position: relative;
-  min-height: 300px;
+  overflow: hidden;
 }
 
 .gantt-grid {
