@@ -16,7 +16,7 @@ function getDescendantIds(tasks, taskId) {
   return ids;
 }
 
-export default function TaskModal({ task, allTasks, onSave, onClose, projectStart }) {
+export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, viewRange }) {
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -27,6 +27,7 @@ export default function TaskModal({ task, allTasks, onSave, onClose, projectStar
     type: "task",
     parentId: null,
     notes: "",
+    projectId: currentProjectId || projects[0]?.id,
   });
 
   useEffect(() => {
@@ -38,12 +39,13 @@ export default function TaskModal({ task, allTasks, onSave, onClose, projectStar
         startMonth: task.startMonth,
         endMonth: task.endMonth ?? task.startMonth,
         color: task.color,
-        type: task.type || (task.isMilestone ? "milestone" : "task"),
+        type: task.type || "task",
         parentId: task.parentId || null,
         notes: task.notes || "",
+        projectId: currentProjectId || projects[0]?.id,
       });
     }
-  }, [task]);
+  }, [task, currentProjectId, projects]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -62,17 +64,23 @@ export default function TaskModal({ task, allTasks, onSave, onClose, projectStar
   };
 
   const getMonthLabel = (offset) => {
-    const [y, m] = projectStart.split("-").map(Number);
-    const date = new Date(y, m - 1 + offset);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    let y = viewRange.startYear;
+    let m = viewRange.startMonth + offset;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    return `${y}-${String(m).padStart(2, "0")}`;
   };
 
-  const monthOptions = Array.from({ length: 24 }, (_, i) => i);
+  // Calculate total months in range
+  const totalMonths = (viewRange.endYear - viewRange.startYear) * 12 + (viewRange.endMonth - viewRange.startMonth) + 1;
+  const monthOptions = Array.from({ length: totalMonths }, (_, i) => i);
 
-  // Parent task options: exclude self and descendants (circular reference prevention)
-  const excludeIds = task ? getDescendantIds(allTasks, task.id) : new Set();
+  // Parent task options from selected project
+  const selectedProject = projects.find((p) => p.id === form.projectId);
+  const projectTasks = selectedProject ? selectedProject.tasks : [];
+  const excludeIds = task ? getDescendantIds(projectTasks, task.id) : new Set();
   if (task) excludeIds.add(task.id);
-  const parentOptions = allTasks.filter(
+  const parentOptions = projectTasks.filter(
     (t) => t.type !== "milestone" && !excludeIds.has(t.id)
   );
 
@@ -81,6 +89,23 @@ export default function TaskModal({ task, allTasks, onSave, onClose, projectStar
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h3>{task ? "Edit Task" : "Add Task"}</h3>
         <form onSubmit={handleSubmit}>
+          <label>
+            Project *
+            <select
+              value={form.projectId}
+              onChange={(e) => {
+                handleChange("projectId", e.target.value);
+                handleChange("parentId", null);
+              }}
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label>
             Type
             <div className="radio-group">

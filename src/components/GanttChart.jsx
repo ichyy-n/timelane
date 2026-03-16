@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 
 const CELL_WIDTH = 80;
-const ROW_HEIGHT = 36;
+const ROW_HEIGHT = 24;
+const BAR_HEIGHT = 8;
+const SUMMARY_BAR_HEIGHT = 8;
 
 // Compute summary range from children
 function getSummaryRange(task, allTasks) {
@@ -18,8 +20,7 @@ function getSummaryRange(task, allTasks) {
 }
 
 export default function GanttChart({
-  tasks,
-  allTasks,
+  displayRows,
   months,
   onTaskClick,
   onTaskUpdate,
@@ -27,7 +28,7 @@ export default function GanttChart({
   const chartRef = useRef(null);
   const [dragging, setDragging] = useState(null);
 
-  const handleMouseDown = (e, task, edge) => {
+  const handleMouseDown = (e, task, edge, projectId) => {
     e.stopPropagation();
     const startX = e.clientX;
     setDragging({ taskId: task.id, edge, startX, origStart: task.startMonth, origEnd: task.endMonth });
@@ -53,7 +54,7 @@ export default function GanttChart({
       if (newEnd >= months.length) newEnd = months.length - 1;
       if (newStart > newEnd) return;
 
-      onTaskUpdate(task.id, { startMonth: newStart, endMonth: newEnd });
+      onTaskUpdate(task.id, { startMonth: newStart, endMonth: newEnd }, projectId);
     };
 
     const handleMouseUp = () => {
@@ -81,7 +82,7 @@ export default function GanttChart({
         ))}
       </div>
 
-      {/* Task rows */}
+      {/* Rows */}
       <div className="gantt-body" style={{ width: months.length * CELL_WIDTH }}>
         {/* Grid lines */}
         <div className="gantt-grid">
@@ -94,14 +95,33 @@ export default function GanttChart({
           ))}
         </div>
 
-        {tasks.map((task, rowIndex) => {
+        {displayRows.map((row, rowIndex) => {
+          // Project header row
+          if (row.type === "project-header") {
+            return (
+              <div
+                key={`proj-${row.project.id}`}
+                className="gantt-row gantt-project-header-row"
+                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              />
+            );
+          }
+
+          const task = row.task;
+          const projectId = row.projectId;
           const isMilestone = task.type === "milestone";
-          const hasKids = allTasks.some((t) => t.parentId === task.id);
+
+          // Find all tasks in same project for summary calculation
+          const projTasks = displayRows
+            .filter((r) => r.type === "task" && r.projectId === projectId)
+            .map((r) => r.task);
+          // Also need all tasks (not just visible) for summary
+          // We'll use the parent lookup from visible + hidden
+          const hasKids = row.hasChildren;
           const isSummary = hasKids && !isMilestone;
-          const summaryRange = isSummary ? getSummaryRange(task, allTasks) : null;
 
           if (isMilestone) {
-            const left = task.startMonth * CELL_WIDTH + CELL_WIDTH / 2 - 8;
+            const left = task.startMonth * CELL_WIDTH + CELL_WIDTH / 2 - 5;
             return (
               <div
                 key={task.id}
@@ -111,40 +131,38 @@ export default function GanttChart({
                 <div
                   className="milestone-marker"
                   style={{ left }}
-                  onClick={() => onTaskClick(task)}
+                  onClick={() => onTaskClick(task, projectId)}
                   title={task.name}
                 />
               </div>
             );
           }
 
-          // Summary bar for parent tasks with children
-          if (isSummary && summaryRange) {
-            const sLeft = summaryRange.startMonth * CELL_WIDTH + 2;
-            const sWidth = (summaryRange.endMonth - summaryRange.startMonth + 1) * CELL_WIDTH - 4;
-
-            return (
-              <div
-                key={task.id}
-                className="gantt-row"
-                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
-              >
+          if (isSummary) {
+            // Need all project tasks for summary range (not just visible)
+            const summaryRange = getSummaryRange(task, projTasks);
+            if (summaryRange) {
+              const sLeft = summaryRange.startMonth * CELL_WIDTH + 2;
+              const sWidth = (summaryRange.endMonth - summaryRange.startMonth + 1) * CELL_WIDTH - 4;
+              return (
                 <div
-                  className="gantt-bar summary-bar"
-                  style={{
-                    left: sLeft,
-                    width: Math.max(sWidth, 20),
-                    backgroundColor: task.color,
-                  }}
-                  onClick={() => onTaskClick(task)}
-                  title={task.name}
+                  key={task.id}
+                  className="gantt-row"
+                  style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
                 >
-                  <div className="bar-label">
-                    {sWidth > 60 ? task.name : ""}
-                  </div>
+                  <div
+                    className="gantt-bar summary-bar"
+                    style={{
+                      left: sLeft,
+                      width: Math.max(sWidth, 20),
+                      backgroundColor: task.color,
+                    }}
+                    onClick={() => onTaskClick(task, projectId)}
+                    title={task.name}
+                  />
                 </div>
-              </div>
-            );
+              );
+            }
           }
 
           // Normal task bar
@@ -164,22 +182,20 @@ export default function GanttChart({
                   width: Math.max(width, 20),
                   backgroundColor: task.color,
                 }}
-                onClick={() => onTaskClick(task)}
+                onClick={() => onTaskClick(task, projectId)}
                 title={task.name}
               >
                 <div
                   className="bar-handle bar-handle-left"
-                  onMouseDown={(e) => handleMouseDown(e, task, "left")}
+                  onMouseDown={(e) => handleMouseDown(e, task, "left", projectId)}
                 />
                 <div
-                  className="bar-label"
-                  onMouseDown={(e) => handleMouseDown(e, task, "move")}
-                >
-                  {width > 60 ? task.name : ""}
-                </div>
+                  className="bar-drag-area"
+                  onMouseDown={(e) => handleMouseDown(e, task, "move", projectId)}
+                />
                 <div
                   className="bar-handle bar-handle-right"
-                  onMouseDown={(e) => handleMouseDown(e, task, "right")}
+                  onMouseDown={(e) => handleMouseDown(e, task, "right", projectId)}
                 />
               </div>
             </div>

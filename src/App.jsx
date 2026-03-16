@@ -3,17 +3,22 @@ import Toolbar from "./components/Toolbar";
 import TaskList from "./components/TaskList";
 import GanttChart from "./components/GanttChart";
 import TaskModal from "./components/TaskModal";
-import { createSampleProject, generateId } from "./data/sampleData";
+import { createSampleProjects, generateId, generateProjectId } from "./data/sampleData";
 import "./App.css";
 
-function getMonthLabels(startDate, count) {
-  const [y, m] = startDate.split("-").map(Number);
-  return Array.from({ length: count }, (_, i) => {
-    const date = new Date(y, m - 1 + i);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    return `${year}/${String(month).padStart(2, "0")}`;
-  });
+function getMonthLabels(startYear, startMonth, endYear, endMonth) {
+  const labels = [];
+  let y = startYear;
+  let m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    labels.push(`${y}/${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  return labels;
 }
 
 // Build tree-ordered flat list
@@ -60,97 +65,168 @@ function getDescendantIds(tasks, parentId) {
   return ids;
 }
 
-// Check if a task has children
-function hasChildren(tasks, taskId) {
-  return tasks.some((t) => t.parentId === taskId);
-}
-
 function App() {
-  const [project, setProject] = useState(createSampleProject);
-  const [modalState, setModalState] = useState({ open: false, task: null });
+  const [projects, setProjects] = useState(createSampleProjects);
+  const [modalState, setModalState] = useState({ open: false, task: null, projectId: null });
   const [collapsedIds, setCollapsedIds] = useState(new Set());
+  const [collapsedProjects, setCollapsedProjects] = useState(new Set());
+  const [viewRange, setViewRange] = useState({
+    startYear: 2025,
+    startMonth: 4,
+    endYear: 2026,
+    endMonth: 3,
+  });
 
-  const months = getMonthLabels(project.project.startDate, 24);
-
-  const { ordered, depthMap } = useMemo(
-    () => buildTreeOrder(project.tasks),
-    [project.tasks]
+  const months = useMemo(
+    () => getMonthLabels(viewRange.startYear, viewRange.startMonth, viewRange.endYear, viewRange.endMonth),
+    [viewRange]
   );
 
-  // Filter out hidden (collapsed parent) tasks
-  const visibleTasks = useMemo(() => {
-    const hidden = new Set();
-    for (const id of collapsedIds) {
-      const descs = getDescendantIds(project.tasks, id);
-      descs.forEach((d) => hidden.add(d));
+  // Build display rows: [{type: "project-header", project} | {type: "task", task, projectId}]
+  const displayRows = useMemo(() => {
+    const rows = [];
+    for (const proj of projects) {
+      rows.push({ type: "project-header", project: proj });
+      if (!collapsedProjects.has(proj.id)) {
+        const { ordered, depthMap } = buildTreeOrder(proj.tasks);
+        // Filter out tasks hidden by collapsed parent tasks
+        const hidden = new Set();
+        for (const id of collapsedIds) {
+          const descs = getDescendantIds(proj.tasks, id);
+          descs.forEach((d) => hidden.add(d));
+        }
+        for (const task of ordered) {
+          if (!hidden.has(task.id)) {
+            rows.push({
+              type: "task",
+              task,
+              projectId: proj.id,
+              depth: depthMap.get(task.id) || 0,
+              hasChildren: proj.tasks.some((t) => t.parentId === task.id),
+            });
+          }
+        }
+      }
     }
-    return ordered.filter((t) => !hidden.has(t.id));
-  }, [ordered, collapsedIds, project.tasks]);
+    return rows;
+  }, [projects, collapsedProjects, collapsedIds]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(taskId)) {
-        next.delete(taskId);
-      } else {
-        next.add(taskId);
-      }
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
       return next;
     });
   }, []);
 
-  const handleAddTask = () => {
-    setModalState({ open: true, task: null });
+  const toggleProjectCollapse = useCallback((projectId) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  }, []);
+
+  const handleAddTask = (projectId) => {
+    setModalState({ open: true, task: null, projectId: projectId || projects[0]?.id });
   };
 
-  const handleTaskClick = (task) => {
-    setModalState({ open: true, task });
+  const handleTaskClick = (task, projectId) => {
+    setModalState({ open: true, task, projectId });
   };
 
   const handleModalClose = () => {
-    setModalState({ open: false, task: null });
+    setModalState({ open: false, task: null, projectId: null });
   };
 
   const handleModalSave = (formData) => {
-    setProject((prev) => {
-      const newTasks = modalState.task
-        ? prev.tasks.map((t) =>
-            t.id === modalState.task.id ? { ...t, ...formData } : t
-          )
-        : [...prev.tasks, { id: generateId(), ...formData }];
-      return { ...prev, tasks: newTasks };
-    });
+    const targetProjectId = formData.projectId || modalState.projectId;
+    setProjects((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== targetProjectId) {
+          // If editing and task was in a different project, remove it from old project
+          if (modalState.task && proj.tasks.some((t) => t.id === modalState.task.id)) {
+            return { ...proj, tasks: proj.tasks.filter((t) => t.id !== modalState.task.id) };
+          }
+          return proj;
+        }
+        const { projectId: _pid, ...taskData } = formData;
+        if (modalState.task) {
+          // Check if task was already in this project
+          const existsHere = proj.tasks.some((t) => t.id === modalState.task.id);
+          if (existsHere) {
+            return {
+              ...proj,
+              tasks: proj.tasks.map((t) =>
+                t.id === modalState.task.id ? { ...t, ...taskData } : t
+              ),
+            };
+          } else {
+            // Moving from another project
+            return {
+              ...proj,
+              tasks: [...proj.tasks, { ...modalState.task, ...taskData }],
+            };
+          }
+        }
+        return {
+          ...proj,
+          tasks: [...proj.tasks, { id: generateId(), ...taskData }],
+        };
+      })
+    );
     handleModalClose();
   };
 
-  const handleDeleteTask = (taskId) => {
-    // Delete task and all descendants
-    const descs = getDescendantIds(project.tasks, taskId);
-    descs.add(taskId);
-    setProject((prev) => ({
-      ...prev,
-      tasks: prev.tasks.filter((t) => !descs.has(t.id)),
-    }));
+  const handleDeleteTask = (taskId, projectId) => {
+    setProjects((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== projectId) return proj;
+        const descs = getDescendantIds(proj.tasks, taskId);
+        descs.add(taskId);
+        return { ...proj, tasks: proj.tasks.filter((t) => !descs.has(t.id)) };
+      })
+    );
   };
 
-  const handleTaskUpdate = useCallback((taskId, updates) => {
-    setProject((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((t) =>
-        t.id === taskId ? { ...t, ...updates } : t
-      ),
-    }));
+  const handleTaskUpdate = useCallback((taskId, updates, projectId) => {
+    setProjects((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== projectId) return proj;
+        return {
+          ...proj,
+          tasks: proj.tasks.map((t) =>
+            t.id === taskId ? { ...t, ...updates } : t
+          ),
+        };
+      })
+    );
   }, []);
 
-  const handleProjectNameChange = (name) => {
-    setProject((prev) => ({
+  const handleAddProject = () => {
+    const name = prompt("Project name:");
+    if (!name) return;
+    setProjects((prev) => [
       ...prev,
-      project: { ...prev.project, name },
-    }));
+      { id: generateProjectId(), name, collapsed: false, tasks: [] },
+    ]);
+  };
+
+  const handleDeleteProject = (projectId) => {
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+  };
+
+  const handleProjectNameChange = (projectId, name) => {
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projectId ? { ...p, name } : p))
+    );
   };
 
   const handleSave = () => {
-    const blob = new Blob([JSON.stringify(project, null, 2)], {
+    const data = { version: "2.0", projects, viewRange };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -168,8 +244,19 @@ function App() {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target.result);
-        if (data.version && data.project && data.tasks) {
-          setProject(data);
+        if (data.version === "2.0" && data.projects) {
+          setProjects(data.projects);
+          if (data.viewRange) setViewRange(data.viewRange);
+        } else if (data.version && data.project && data.tasks) {
+          // Legacy v1 format: convert to multi-project
+          setProjects([
+            {
+              id: generateProjectId(),
+              name: data.project.name || "Imported Project",
+              collapsed: false,
+              tasks: data.tasks,
+            },
+          ]);
         } else {
           alert("Invalid project file format.");
         }
@@ -181,31 +268,39 @@ function App() {
     e.target.value = "";
   };
 
+  // Flatten all tasks for the modal's parent options
+  const allTasksFlat = useMemo(
+    () => projects.flatMap((p) => p.tasks.map((t) => ({ ...t, projectId: p.id }))),
+    [projects]
+  );
+
   return (
     <div className="app">
       <Toolbar
-        projectName={project.project.name}
-        onProjectNameChange={handleProjectNameChange}
-        onAddTask={handleAddTask}
+        onAddTask={() => handleAddTask(null)}
+        onAddProject={handleAddProject}
         onSave={handleSave}
         onLoad={handleLoad}
+        viewRange={viewRange}
+        onViewRangeChange={setViewRange}
       />
       <div className="main-content">
         <div className="left-panel">
           <TaskList
-            tasks={visibleTasks}
-            allTasks={project.tasks}
-            depthMap={depthMap}
+            displayRows={displayRows}
             collapsedIds={collapsedIds}
+            collapsedProjects={collapsedProjects}
             onToggleCollapse={toggleCollapse}
+            onToggleProjectCollapse={toggleProjectCollapse}
             onTaskClick={handleTaskClick}
             onDelete={handleDeleteTask}
+            onDeleteProject={handleDeleteProject}
+            onProjectNameChange={handleProjectNameChange}
           />
         </div>
         <div className="right-panel">
           <GanttChart
-            tasks={visibleTasks}
-            allTasks={project.tasks}
+            displayRows={displayRows}
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}
@@ -213,18 +308,21 @@ function App() {
         </div>
       </div>
       <div className="status-bar">
-        Period: {months[0]} - {months[months.length - 1]} | Tasks:{" "}
-        {project.tasks.filter((t) => t.type !== "milestone").length} |
-        Milestones: {project.tasks.filter((t) => t.type === "milestone").length}
+        Period: {months[0]} - {months[months.length - 1]} | Projects:{" "}
+        {projects.length} | Tasks:{" "}
+        {projects.reduce((sum, p) => sum + p.tasks.filter((t) => t.type !== "milestone").length, 0)} |
+        Milestones:{" "}
+        {projects.reduce((sum, p) => sum + p.tasks.filter((t) => t.type === "milestone").length, 0)}
       </div>
 
       {modalState.open && (
         <TaskModal
           task={modalState.task}
-          allTasks={project.tasks}
+          projects={projects}
+          currentProjectId={modalState.projectId}
           onSave={handleModalSave}
           onClose={handleModalClose}
-          projectStart={project.project.startDate}
+          viewRange={viewRange}
         />
       )}
     </div>

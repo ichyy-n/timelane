@@ -1,13 +1,31 @@
+import { useState } from "react";
+
 export default function TaskList({
-  tasks,
-  allTasks,
-  depthMap,
+  displayRows,
   collapsedIds,
+  collapsedProjects,
   onToggleCollapse,
+  onToggleProjectCollapse,
   onTaskClick,
   onDelete,
+  onDeleteProject,
+  onProjectNameChange,
 }) {
-  const hasChildTasks = (taskId) => allTasks.some((t) => t.parentId === taskId);
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editName, setEditName] = useState("");
+
+  const startEditProjectName = (e, proj) => {
+    e.stopPropagation();
+    setEditingProjectId(proj.id);
+    setEditName(proj.name);
+  };
+
+  const finishEditProjectName = (projectId) => {
+    if (editName.trim()) {
+      onProjectNameChange(projectId, editName.trim());
+    }
+    setEditingProjectId(null);
+  };
 
   return (
     <div className="task-list">
@@ -17,21 +35,76 @@ export default function TaskList({
         <span className="col-location">Location</span>
         <span className="col-actions"></span>
       </div>
-      {tasks.map((task) => {
-        const depth = depthMap.get(task.id) || 0;
-        const hasKids = hasChildTasks(task.id);
+      {displayRows.map((row) => {
+        if (row.type === "project-header") {
+          const proj = row.project;
+          const isCollapsed = collapsedProjects.has(proj.id);
+          return (
+            <div
+              key={`proj-${proj.id}`}
+              className="task-list-row project-header-row"
+              onClick={() => onToggleProjectCollapse(proj.id)}
+            >
+              <span className="col-name project-header-name">
+                <span className="tree-toggle">
+                  {isCollapsed ? "▶" : "▼"}
+                </span>
+                {editingProjectId === proj.id ? (
+                  <input
+                    className="project-inline-edit"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={() => finishEditProjectName(proj.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") finishEditProjectName(proj.id);
+                      if (e.key === "Escape") setEditingProjectId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                ) : (
+                  <span
+                    className="project-name-label"
+                    onDoubleClick={(e) => startEditProjectName(e, proj)}
+                  >
+                    {proj.name}
+                  </span>
+                )}
+              </span>
+              <span className="col-assignee"></span>
+              <span className="col-location"></span>
+              <span className="col-actions">
+                <button
+                  className="btn-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteProject(proj.id);
+                  }}
+                  title="Delete Project"
+                >
+                  ×
+                </button>
+              </span>
+            </div>
+          );
+        }
+
+        const task = row.task;
+        const depth = row.depth;
+        const hasKids = row.hasChildren;
         const isCollapsed = collapsedIds.has(task.id);
         const isMilestone = task.type === "milestone";
+        const projectId = row.projectId;
 
         return (
           <div
             key={task.id}
             className="task-list-row"
-            onClick={() => onTaskClick(task)}
+            onClick={() => onTaskClick(task, projectId)}
           >
             <span
               className="col-name"
-              style={{ paddingLeft: depth * 20 }}
+              style={{ paddingLeft: (depth + 1) * 16 }}
             >
               {hasKids ? (
                 <span
@@ -60,7 +133,7 @@ export default function TaskList({
                 className="btn-delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(task.id);
+                  onDelete(task.id, projectId);
                 }}
                 title="Delete"
               >
