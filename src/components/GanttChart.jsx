@@ -13,7 +13,9 @@ function getSummaryRange(task, allTasks) {
   let maxEnd = -Infinity;
   for (const c of children) {
     if (c.startMonth < minStart) minStart = c.startMonth;
-    const end = c.type === "milestone" ? c.startMonth : c.endMonth;
+    const end = c.type === "milestone"
+      ? (c.dates && c.dates.length > 0 ? Math.max(...c.dates.map(d => d.monthIndex !== undefined ? d.monthIndex : c.startMonth)) : c.startMonth)
+      : c.endMonth;
     if (end > maxEnd) maxEnd = end;
   }
   return { startMonth: minStart, endMonth: maxEnd };
@@ -24,6 +26,8 @@ export default function GanttChart({
   months,
   onTaskClick,
   onTaskUpdate,
+  colorMode = true,
+  viewRange,
 }) {
   const chartRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -121,19 +125,57 @@ export default function GanttChart({
           const isSummary = hasKids && !isMilestone;
 
           if (isMilestone) {
-            const left = task.startMonth * CELL_WIDTH + CELL_WIDTH / 2 - 5;
+            // Support multi-date milestones via dates array
+            const milestoneDates = task.dates && task.dates.length > 0
+              ? task.dates
+              : [{ date: null, label: "", monthIndex: task.startMonth }];
+
+            // Convert date strings to month indices if needed
+            const milestonePoints = milestoneDates.map((d) => {
+              if (d.monthIndex !== undefined) return d;
+              // Parse "YYYY-MM" to month index relative to view range
+              const [year, month] = d.date.split("-").map(Number);
+              const startTotal = viewRange.startYear * 12 + viewRange.startMonth;
+              const dateTotal = year * 12 + month;
+              return { ...d, monthIndex: dateTotal - startTotal };
+            });
+
+            const monoColor = !colorMode ? "#333333" : undefined;
+
             return (
               <div
                 key={task.id}
                 className="gantt-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
-                <div
-                  className="milestone-marker"
-                  style={{ left }}
-                  onClick={() => onTaskClick(task, projectId)}
-                  title={task.name}
-                />
+                {milestonePoints.map((point, pi) => {
+                  const left = point.monthIndex * CELL_WIDTH + CELL_WIDTH / 2 - 5;
+                  return (
+                    <div key={pi} style={{ position: "absolute", left }}>
+                      <div
+                        className="milestone-marker"
+                        style={monoColor ? { borderTopColor: monoColor } : undefined}
+                        onClick={() => onTaskClick(task, projectId)}
+                        title={point.label ? `${task.name}: ${point.label}` : task.name}
+                      />
+                      {point.label && (
+                        <span
+                          className="milestone-label"
+                          style={{
+                            position: "absolute",
+                            top: 17,
+                            left: -10,
+                            fontSize: "10px",
+                            color: monoColor || "#e63946",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {point.label}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           }
@@ -155,7 +197,7 @@ export default function GanttChart({
                     style={{
                       left: sLeft,
                       width: Math.max(sWidth, 20),
-                      backgroundColor: task.color,
+                      backgroundColor: colorMode ? task.color : "#333333",
                     }}
                     onClick={() => onTaskClick(task, projectId)}
                     title={task.name}
@@ -180,7 +222,7 @@ export default function GanttChart({
                 style={{
                   left: left + 2,
                   width: Math.max(width, 20),
-                  backgroundColor: task.color,
+                  backgroundColor: colorMode ? task.color : "#333333",
                 }}
                 onClick={() => onTaskClick(task, projectId)}
                 title={task.name}

@@ -564,3 +564,67 @@ body {
   background: var(--accent) !important;
   color: #ffffff !important;
 }
+
+/* Color mode toggle */
+.btn-color-active {
+  background: #fff3cd !important;
+  border-color: #ffc107 !important;
+}
+
+/* Milestone dates editing */
+.milestone-dates-section {
+  margin-bottom: 12px;
+}
+
+.milestone-dates-section > label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.milestone-date-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.milestone-date-row select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.milestone-date-row input[type="text"] {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.btn-add-date {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.btn-add-date:hover {
+  background: var(--bg-hover);
+}
+
+/* Milestone label in gantt */
+.milestone-label {
+  pointer-events: none;
+  user-select: none;
+}

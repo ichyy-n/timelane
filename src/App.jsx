@@ -70,6 +70,7 @@ function App() {
   const [modalState, setModalState] = useState({ open: false, task: null, projectId: null });
   const [collapsedIds, setCollapsedIds] = useState(new Set());
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
+  const [colorMode, setColorMode] = useState(true);
   const [viewRange, setViewRange] = useState({
     startYear: 2025,
     startMonth: 4,
@@ -225,7 +226,7 @@ function App() {
   };
 
   const handleSave = () => {
-    const data = { version: "2.0", projects, viewRange };
+    const data = { version: "2.0", projects, viewRange, colorMode };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
@@ -247,6 +248,7 @@ function App() {
         if (data.version === "2.0" && data.projects) {
           setProjects(data.projects);
           if (data.viewRange) setViewRange(data.viewRange);
+          if (data.colorMode !== undefined) setColorMode(data.colorMode);
         } else if (data.version && data.project && data.tasks) {
           // Legacy v1 format: convert to multi-project
           setProjects([
@@ -283,6 +285,8 @@ function App() {
         onLoad={handleLoad}
         viewRange={viewRange}
         onViewRangeChange={setViewRange}
+        colorMode={colorMode}
+        onColorModeChange={setColorMode}
       />
       <div className="main-content">
         <div className="left-panel">
@@ -296,6 +300,7 @@ function App() {
             onDelete={handleDeleteTask}
             onDeleteProject={handleDeleteProject}
             onProjectNameChange={handleProjectNameChange}
+            colorMode={colorMode}
           />
         </div>
         <div className="right-panel">
@@ -304,6 +309,8 @@ function App() {
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}
+            colorMode={colorMode}
+            viewRange={viewRange}
           />
         </div>
       </div>

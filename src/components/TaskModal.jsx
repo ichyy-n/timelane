@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { COLOR_PALETTE } from "../data/sampleData";
 
+function getMonthLabelFromOffset(offset, viewRange) {
+  let y = viewRange.startYear;
+  let m = viewRange.startMonth + offset;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
 // Get all descendant IDs to prevent circular references
 function getDescendantIds(tasks, taskId) {
   const ids = new Set();
@@ -28,6 +36,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     parentId: null,
     notes: "",
     projectId: currentProjectId || projects[0]?.id,
+    dates: [{ date: "", label: "" }],
   });
 
   useEffect(() => {
@@ -43,6 +52,9 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         parentId: task.parentId || null,
         notes: task.notes || "",
         projectId: currentProjectId || projects[0]?.id,
+        dates: task.dates && task.dates.length > 0
+          ? task.dates.map((d) => ({ date: d.date || "", label: d.label || "" }))
+          : [{ date: getMonthLabelFromOffset(task.startMonth, viewRange), label: "" }],
       });
     }
   }, [task, currentProjectId, projects]);
@@ -60,6 +72,21 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
       endMonth: form.type === "milestone" ? Number(form.startMonth) : Number(form.endMonth),
       parentId: form.parentId || null,
     };
+    if (form.type === "milestone") {
+      // Filter out empty dates, keep only valid entries
+      const validDates = form.dates.filter((d) => d.date);
+      data.dates = validDates.length > 0 ? validDates : undefined;
+      // Set startMonth from first date for backward compatibility
+      if (validDates.length > 0) {
+        const [year, month] = validDates[0].date.split("-").map(Number);
+        const startTotal = viewRange.startYear * 12 + viewRange.startMonth;
+        const dateTotal = year * 12 + month;
+        data.startMonth = dateTotal - startTotal;
+        data.endMonth = data.startMonth;
+      }
+    } else {
+      delete data.dates;
+    }
     onSave(data);
   };
 
@@ -158,21 +185,87 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
             </select>
           </label>
 
-          <div className="form-row">
-            <label>
-              Start
-              <select
-                value={form.startMonth}
-                onChange={(e) => handleChange("startMonth", e.target.value)}
+          {form.type === "milestone" ? (
+            <div className="milestone-dates-section">
+              <label>Milestone Dates</label>
+              {form.dates.map((d, idx) => (
+                <div key={idx} className="milestone-date-row">
+                  <select
+                    value={d.date ? d.date.split("-")[0] : viewRange.startYear}
+                    onChange={(e) => {
+                      const newDates = [...form.dates];
+                      const month = d.date ? d.date.split("-")[1] : "01";
+                      newDates[idx] = { ...d, date: `${e.target.value}-${month}` };
+                      handleChange("dates", newDates);
+                    }}
+                  >
+                    {Array.from({ length: 10 }, (_, i) => 2024 + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={d.date ? parseInt(d.date.split("-")[1], 10) : 1}
+                    onChange={(e) => {
+                      const newDates = [...form.dates];
+                      const year = d.date ? d.date.split("-")[0] : String(viewRange.startYear);
+                      newDates[idx] = { ...d, date: `${year}-${String(e.target.value).padStart(2, "0")}` };
+                      handleChange("dates", newDates);
+                    }}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Label"
+                    value={d.label}
+                    onChange={(e) => {
+                      const newDates = [...form.dates];
+                      newDates[idx] = { ...d, label: e.target.value };
+                      handleChange("dates", newDates);
+                    }}
+                    style={{ flex: 1, marginTop: 0 }}
+                  />
+                  {form.dates.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => {
+                        const newDates = form.dates.filter((_, i) => i !== idx);
+                        handleChange("dates", newDates);
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn-add-date"
+                onClick={() => {
+                  handleChange("dates", [...form.dates, { date: `${viewRange.startYear}-01`, label: "" }]);
+                }}
               >
-                {monthOptions.map((i) => (
-                  <option key={i} value={i}>
-                    {getMonthLabel(i)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {form.type !== "milestone" && (
+                + Add Date
+              </button>
+            </div>
+          ) : (
+            <div className="form-row">
+              <label>
+                Start
+                <select
+                  value={form.startMonth}
+                  onChange={(e) => handleChange("startMonth", e.target.value)}
+                >
+                  {monthOptions.map((i) => (
+                    <option key={i} value={i}>
+                      {getMonthLabel(i)}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label>
                 End
                 <select
@@ -186,8 +279,8 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   ))}
                 </select>
               </label>
-            )}
-          </div>
+            </div>
+          )}
 
           <label>
             Assignee

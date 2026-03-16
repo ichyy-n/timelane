@@ -10,6 +10,7 @@ export default function TaskList({
   onDelete,
   onDeleteProject,
   onProjectNameChange,
+  colorMode = true,
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -121,7 +122,7 @@ export default function TaskList({
               )}
               <span
                 className="task-color-dot"
-                style={{ backgroundColor: task.color }}
+                style={{ backgroundColor: colorMode ? task.color : "#333333" }}
               />
               {isMilestone ? "◆ " : ""}
               {task.name}

@@ -5,6 +5,8 @@ export default function Toolbar({
   onLoad,
   viewRange,
   onViewRangeChange,
+  colorMode,
+  onColorModeChange,
 }) {
   const years = Array.from({ length: 10 }, (_, i) => 2024 + i);
   const monthNums = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -52,6 +54,13 @@ export default function Toolbar({
         </select>
       </div>
       <div className="toolbar-actions">
+        <button
+          onClick={() => onColorModeChange(!colorMode)}
+          className={colorMode ? "btn-color-active" : ""}
+          title={colorMode ? "Color ON" : "Color OFF (monochrome)"}
+        >
+          {colorMode ? "\uD83C\uDFA8 Color" : "\u25A0 Mono"}
+        </button>
         <button onClick={onAddProject}>+ Project</button>
         <button onClick={onAddTask} className="btn-primary">
           + Add Task
