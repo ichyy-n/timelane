@@ -69,16 +69,19 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     if (!form.name.trim()) return;
     const data = {
       ...form,
-      startDate: form.startDate,
-      endDate: form.type === "milestone" ? form.startDate : form.endDate,
+      startDate: form.startDate || null,
+      endDate: form.type === "milestone" ? (form.startDate || null) : (form.endDate || null),
       parentId: form.parentId || null,
     };
     if (form.type === "milestone") {
-      const validDates = form.dates.filter((d) => d.date);
-      data.dates = validDates.length > 0 ? validDates : undefined;
+      const validDates = form.dates ? form.dates.filter((d) => d.date) : [];
+      data.dates = validDates;
       if (validDates.length > 0) {
         data.startDate = validDates[0].date;
         data.endDate = data.startDate;
+      } else {
+        data.startDate = null;
+        data.endDate = null;
       }
     } else {
       delete data.dates;
@@ -194,18 +197,16 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                     }}
                     style={{ flex: 1, marginTop: 0 }}
                   />
-                  {form.dates.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => {
-                        const newDates = form.dates.filter((_, i) => i !== idx);
-                        handleChange("dates", newDates);
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="btn-delete"
+                    onClick={() => {
+                      const newDates = form.dates.filter((_, i) => i !== idx);
+                      handleChange("dates", newDates);
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
               <button

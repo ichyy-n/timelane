@@ -55,8 +55,9 @@ function getSummaryDateRange(task, allTasks) {
           ? c.dates.reduce((max, d) => (d.date > max ? d.date : max), c.dates[0].date)
           : cStart
         : c.endDate;
-    if (!minDate || cStart < minDate) minDate = cStart;
-    if (!maxDate || cEnd > maxDate) maxDate = cEnd;
+    if (!cStart && !cEnd) continue;
+    if (cStart && (!minDate || cStart < minDate)) minDate = cStart;
+    if (cEnd && (!maxDate || cEnd > maxDate)) maxDate = cEnd;
   }
   return minDate && maxDate ? { startDate: minDate, endDate: maxDate } : null;
 }
@@ -167,7 +168,19 @@ export default function GanttChart({
             const milestoneDates =
               task.dates && task.dates.length > 0
                 ? task.dates
-                : [{ date: task.startDate, label: "" }];
+                : task.startDate
+                  ? [{ date: task.startDate, label: "" }]
+                  : [];
+
+            if (milestoneDates.length === 0) {
+              return (
+                <div
+                  key={task.id}
+                  className="gantt-row"
+                  style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+                />
+              );
+            }
 
             const monoColor = !colorMode ? "#333333" : undefined;
 
@@ -237,7 +250,17 @@ export default function GanttChart({
             }
           }
 
-          // Normal task bar
+          // Normal task bar — skip if dates are missing
+          if (!task.startDate || !task.endDate) {
+            return (
+              <div
+                key={task.id}
+                className="gantt-row"
+                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              />
+            );
+          }
+
           const left = dateToPixel(task.startDate, viewRange, false);
           const right = dateToPixel(task.endDate, viewRange, true);
           const width = right - left;

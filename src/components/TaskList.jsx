@@ -124,7 +124,6 @@ export default function TaskList({
                 className="task-color-dot"
                 style={{ backgroundColor: colorMode ? task.color : "#333333" }}
               />
-              {isMilestone ? "◆ " : ""}
               {task.name}
             </span>
             <span className="col-assignee">{task.assignee}</span>
