@@ -201,21 +201,6 @@ export default function GanttChart({
                         onClick={() => onTaskClick(task, projectId)}
                         title={point.label ? `${task.name}: ${point.label}` : task.name}
                       />
-                      {point.label && (
-                        <span
-                          className="milestone-label"
-                          style={{
-                            position: "absolute",
-                            top: 17,
-                            left: -10,
-                            fontSize: "10px",
-                            color: monoColor || "#e63946",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {point.label}
-                        </span>
-                      )}
                     </div>
                   );
                 })}

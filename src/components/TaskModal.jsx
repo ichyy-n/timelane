@@ -223,19 +223,45 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
             <div className="form-row">
               <label>
                 Start
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) => handleChange("startDate", e.target.value)}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input
+                    type="date"
+                    value={form.startDate || ""}
+                    onChange={(e) => handleChange("startDate", e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  {form.startDate && (
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => handleChange("startDate", "")}
+                      title="Clear start date"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </label>
               <label>
                 End
-                <input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) => handleChange("endDate", e.target.value)}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input
+                    type="date"
+                    value={form.endDate || ""}
+                    onChange={(e) => handleChange("endDate", e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  {form.endDate && (
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => handleChange("endDate", "")}
+                      title="Clear end date"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </label>
             </div>
           )}
