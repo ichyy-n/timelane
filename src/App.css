@@ -230,6 +230,16 @@ body {
   white-space: nowrap;
 }
 
+.col-notes {
+  flex: 1;
+  max-width: 120px;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .col-actions {
   width: 24px;
   text-align: center;
