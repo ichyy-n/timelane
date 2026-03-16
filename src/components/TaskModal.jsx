@@ -1,7 +1,22 @@
 import { useState, useEffect } from "react";
 import { COLOR_PALETTE } from "../data/sampleData";
 
-export default function TaskModal({ task, onSave, onClose, projectStart }) {
+// Get all descendant IDs to prevent circular references
+function getDescendantIds(tasks, taskId) {
+  const ids = new Set();
+  function walk(pid) {
+    for (const t of tasks) {
+      if (t.parentId === pid) {
+        ids.add(t.id);
+        walk(t.id);
+      }
+    }
+  }
+  walk(taskId);
+  return ids;
+}
+
+export default function TaskModal({ task, allTasks, onSave, onClose, projectStart }) {
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -9,7 +24,8 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
     startMonth: 0,
     endMonth: 1,
     color: COLOR_PALETTE[0],
-    isMilestone: false,
+    type: "task",
+    parentId: null,
     notes: "",
   });
 
@@ -20,9 +36,10 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
         location: task.location,
         assignee: task.assignee,
         startMonth: task.startMonth,
-        endMonth: task.endMonth,
+        endMonth: task.endMonth ?? task.startMonth,
         color: task.color,
-        isMilestone: task.isMilestone,
+        type: task.type || (task.isMilestone ? "milestone" : "task"),
+        parentId: task.parentId || null,
         notes: task.notes || "",
       });
     }
@@ -35,14 +52,15 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onSave({
+    const data = {
       ...form,
       startMonth: Number(form.startMonth),
-      endMonth: Number(form.endMonth),
-    });
+      endMonth: form.type === "milestone" ? Number(form.startMonth) : Number(form.endMonth),
+      parentId: form.parentId || null,
+    };
+    onSave(data);
   };
 
-  // Generate month options based on project start
   const getMonthLabel = (offset) => {
     const [y, m] = projectStart.split("-").map(Number);
     const date = new Date(y, m - 1 + offset);
@@ -51,11 +69,44 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
 
   const monthOptions = Array.from({ length: 24 }, (_, i) => i);
 
+  // Parent task options: exclude self and descendants (circular reference prevention)
+  const excludeIds = task ? getDescendantIds(allTasks, task.id) : new Set();
+  if (task) excludeIds.add(task.id);
+  const parentOptions = allTasks.filter(
+    (t) => t.type !== "milestone" && !excludeIds.has(t.id)
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h3>{task ? "Edit Task" : "Add Task"}</h3>
         <form onSubmit={handleSubmit}>
+          <label>
+            Type
+            <div className="radio-group">
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="type"
+                  value="task"
+                  checked={form.type === "task"}
+                  onChange={() => handleChange("type", "task")}
+                />
+                Task
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="type"
+                  value="milestone"
+                  checked={form.type === "milestone"}
+                  onChange={() => handleChange("type", "milestone")}
+                />
+                Milestone
+              </label>
+            </div>
+          </label>
+
           <label>
             Task Name *
             <input
@@ -65,6 +116,21 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
               autoFocus
               required
             />
+          </label>
+
+          <label>
+            Parent Task
+            <select
+              value={form.parentId || ""}
+              onChange={(e) => handleChange("parentId", e.target.value || null)}
+            >
+              <option value="">None (Root)</option>
+              {parentOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="form-row">
@@ -81,19 +147,21 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
                 ))}
               </select>
             </label>
-            <label>
-              End
-              <select
-                value={form.endMonth}
-                onChange={(e) => handleChange("endMonth", e.target.value)}
-              >
-                {monthOptions.map((i) => (
-                  <option key={i} value={i}>
-                    {getMonthLabel(i)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {form.type !== "milestone" && (
+              <label>
+                End
+                <select
+                  value={form.endMonth}
+                  onChange={(e) => handleChange("endMonth", e.target.value)}
+                >
+                  {monthOptions.map((i) => (
+                    <option key={i} value={i}>
+                      {getMonthLabel(i)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <label>
@@ -112,15 +180,6 @@ export default function TaskModal({ task, onSave, onClose, projectStart }) {
               value={form.location}
               onChange={(e) => handleChange("location", e.target.value)}
             />
-          </label>
-
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={form.isMilestone}
-              onChange={(e) => handleChange("isMilestone", e.target.checked)}
-            />
-            Milestone
           </label>
 
           <label>

@@ -1,16 +1,16 @@
-/* Dark theme Gantt chart app */
+/* Light theme Gantt chart app */
 :root {
-  --bg-primary: #1e1e2e;
-  --bg-secondary: #181825;
-  --bg-surface: #313244;
-  --bg-hover: #45475a;
-  --text-primary: #cdd6f4;
-  --text-secondary: #a6adc8;
-  --text-muted: #6c7086;
-  --border: #45475a;
-  --accent: #89b4fa;
-  --accent-hover: #74c7ec;
-  --danger: #f38ba8;
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-surface: #f1f3f5;
+  --bg-hover: #e9ecef;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-muted: #868e96;
+  --border: #dee2e6;
+  --accent: #0d6efd;
+  --accent-hover: #0b5ed7;
+  --danger: #e63946;
 }
 
 * {
@@ -81,7 +81,7 @@ body {
 
 .btn-primary {
   background: var(--accent) !important;
-  color: var(--bg-primary) !important;
+  color: #ffffff !important;
   border-color: var(--accent) !important;
   font-weight: 600;
 }
@@ -192,7 +192,30 @@ body {
 
 .btn-delete:hover {
   color: var(--danger);
-  background: rgba(243, 139, 168, 0.15);
+  background: rgba(230, 57, 70, 0.1);
+}
+
+/* Tree toggle */
+.tree-toggle {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+  border-radius: 3px;
+}
+
+.tree-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.tree-toggle-placeholder {
+  width: 20px;
+  flex-shrink: 0;
 }
 
 /* Gantt chart */
@@ -241,14 +264,14 @@ body {
 }
 
 .gantt-grid-col:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .gantt-row {
   position: absolute;
   left: 0;
   right: 0;
-  border-bottom: 1px solid rgba(69, 71, 90, 0.3);
+  border-bottom: 1px solid rgba(222, 226, 230, 0.5);
 }
 
 .gantt-bar {
@@ -265,7 +288,14 @@ body {
 
 .gantt-bar:hover {
   opacity: 0.85;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gantt-bar.summary-bar {
+  opacity: 0.5;
+  border-radius: 2px;
+  height: 20px;
+  top: 8px;
 }
 
 .bar-label {
@@ -276,7 +306,7 @@ body {
   white-space: nowrap;
   font-size: 11px;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   cursor: grab;
 }
 
@@ -303,16 +333,19 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.gantt-milestone {
+/* Milestone marker (inverted triangle) */
+.milestone-marker {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 14px solid #e63946;
   position: absolute;
-  top: 6px;
-  font-size: 18px;
-  color: #70AD47;
+  top: 8px;
   cursor: pointer;
-  user-select: none;
 }
 
-.gantt-milestone:hover {
+.milestone-marker:hover {
   transform: scale(1.2);
 }
 
@@ -329,7 +362,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -344,6 +377,7 @@ body {
   width: 400px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 }
 
 .modal-content h3 {
@@ -365,7 +399,7 @@ body {
   width: 100%;
   margin-top: 4px;
   padding: 8px 10px;
-  background: var(--bg-surface);
+  background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-primary);
@@ -402,6 +436,25 @@ body {
 .checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
+  accent-color: var(--accent);
+}
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.radio-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0 !important;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
   accent-color: var(--accent);
 }
 
@@ -443,5 +496,5 @@ body {
 
 .modal-actions .btn-primary {
   background: var(--accent) !important;
-  color: var(--bg-primary) !important;
+  color: #ffffff !important;
 }

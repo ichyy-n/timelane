@@ -3,8 +3,23 @@ import { useRef, useState } from "react";
 const CELL_WIDTH = 80;
 const ROW_HEIGHT = 36;
 
+// Compute summary range from children
+function getSummaryRange(task, allTasks) {
+  const children = allTasks.filter((t) => t.parentId === task.id);
+  if (children.length === 0) return null;
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const c of children) {
+    if (c.startMonth < minStart) minStart = c.startMonth;
+    const end = c.type === "milestone" ? c.startMonth : c.endMonth;
+    if (end > maxEnd) maxEnd = end;
+  }
+  return { startMonth: minStart, endMonth: maxEnd };
+}
+
 export default function GanttChart({
   tasks,
+  allTasks,
   months,
   onTaskClick,
   onTaskUpdate,
@@ -80,10 +95,61 @@ export default function GanttChart({
         </div>
 
         {tasks.map((task, rowIndex) => {
+          const isMilestone = task.type === "milestone";
+          const hasKids = allTasks.some((t) => t.parentId === task.id);
+          const isSummary = hasKids && !isMilestone;
+          const summaryRange = isSummary ? getSummaryRange(task, allTasks) : null;
+
+          if (isMilestone) {
+            const left = task.startMonth * CELL_WIDTH + CELL_WIDTH / 2 - 8;
+            return (
+              <div
+                key={task.id}
+                className="gantt-row"
+                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              >
+                <div
+                  className="milestone-marker"
+                  style={{ left }}
+                  onClick={() => onTaskClick(task)}
+                  title={task.name}
+                />
+              </div>
+            );
+          }
+
+          // Summary bar for parent tasks with children
+          if (isSummary && summaryRange) {
+            const sLeft = summaryRange.startMonth * CELL_WIDTH + 2;
+            const sWidth = (summaryRange.endMonth - summaryRange.startMonth + 1) * CELL_WIDTH - 4;
+
+            return (
+              <div
+                key={task.id}
+                className="gantt-row"
+                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              >
+                <div
+                  className="gantt-bar summary-bar"
+                  style={{
+                    left: sLeft,
+                    width: Math.max(sWidth, 20),
+                    backgroundColor: task.color,
+                  }}
+                  onClick={() => onTaskClick(task)}
+                  title={task.name}
+                >
+                  <div className="bar-label">
+                    {sWidth > 60 ? task.name : ""}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Normal task bar
           const left = task.startMonth * CELL_WIDTH;
-          const width = task.isMilestone
-            ? 24
-            : (task.endMonth - task.startMonth + 1) * CELL_WIDTH - 4;
+          const width = (task.endMonth - task.startMonth + 1) * CELL_WIDTH - 4;
 
           return (
             <div
@@ -91,45 +157,31 @@ export default function GanttChart({
               className="gantt-row"
               style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
             >
-              {task.isMilestone ? (
+              <div
+                className="gantt-bar"
+                style={{
+                  left: left + 2,
+                  width: Math.max(width, 20),
+                  backgroundColor: task.color,
+                }}
+                onClick={() => onTaskClick(task)}
+                title={task.name}
+              >
                 <div
-                  className="gantt-milestone"
-                  style={{ left: left + CELL_WIDTH / 2 - 12 }}
-                  onClick={() => onTaskClick(task)}
-                  title={task.name}
-                >
-                  ◆
-                </div>
-              ) : (
+                  className="bar-handle bar-handle-left"
+                  onMouseDown={(e) => handleMouseDown(e, task, "left")}
+                />
                 <div
-                  className="gantt-bar"
-                  style={{
-                    left: left + 2,
-                    width: Math.max(width, 20),
-                    backgroundColor: task.color,
-                  }}
-                  onClick={() => onTaskClick(task)}
-                  title={task.name}
+                  className="bar-label"
+                  onMouseDown={(e) => handleMouseDown(e, task, "move")}
                 >
-                  {/* Left resize handle */}
-                  <div
-                    className="bar-handle bar-handle-left"
-                    onMouseDown={(e) => handleMouseDown(e, task, "left")}
-                  />
-                  {/* Move area */}
-                  <div
-                    className="bar-label"
-                    onMouseDown={(e) => handleMouseDown(e, task, "move")}
-                  >
-                    {width > 60 ? task.name : ""}
-                  </div>
-                  {/* Right resize handle */}
-                  <div
-                    className="bar-handle bar-handle-right"
-                    onMouseDown={(e) => handleMouseDown(e, task, "right")}
-                  />
+                  {width > 60 ? task.name : ""}
                 </div>
-              )}
+                <div
+                  className="bar-handle bar-handle-right"
+                  onMouseDown={(e) => handleMouseDown(e, task, "right")}
+                />
+              </div>
             </div>
           );
         })}
