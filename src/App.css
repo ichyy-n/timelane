@@ -459,6 +459,7 @@ body {
 }
 
 .modal-content input[type="text"],
+.modal-content input[type="date"],
 .modal-content select,
 .modal-content textarea {
   display: block;

@@ -21,6 +21,39 @@ function getMonthLabels(startYear, startMonth, endYear, endMonth) {
   return labels;
 }
 
+// Convert legacy startMonth/endMonth (offset-based) to startDate/endDate (YYYY-MM-DD)
+function convertLegacyTask(task, viewRange) {
+  if (task.startDate) return task;
+  let y = viewRange.startYear;
+  let m = viewRange.startMonth + task.startMonth;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  const startDate = `${y}-${String(m).padStart(2, "0")}-01`;
+
+  let ey = viewRange.startYear;
+  let em = viewRange.startMonth + (task.endMonth ?? task.startMonth);
+  while (em > 12) { em -= 12; ey++; }
+  while (em < 1) { em += 12; ey--; }
+  const lastDay = new Date(ey, em, 0).getDate();
+  const endDate = `${ey}-${String(em).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+  const converted = { ...task, startDate, endDate };
+  delete converted.startMonth;
+  delete converted.endMonth;
+
+  // Convert milestone dates from "YYYY-MM" to "YYYY-MM-15"
+  if (converted.dates) {
+    converted.dates = converted.dates.map((d) => {
+      if (d.date && d.date.length === 7) {
+        return { ...d, date: d.date + "-15" };
+      }
+      return d;
+    });
+  }
+
+  return converted;
+}
+
 // Build tree-ordered flat list
 function buildTreeOrder(tasks) {
   const childMap = new Map();
@@ -246,17 +279,24 @@ function App() {
       try {
         const data = JSON.parse(event.target.result);
         if (data.version === "2.0" && data.projects) {
-          setProjects(data.projects);
+          const vr = data.viewRange || viewRange;
+          // Convert legacy startMonth/endMonth tasks to startDate/endDate
+          const convertedProjects = data.projects.map((proj) => ({
+            ...proj,
+            tasks: proj.tasks.map((t) => convertLegacyTask(t, vr)),
+          }));
+          setProjects(convertedProjects);
           if (data.viewRange) setViewRange(data.viewRange);
           if (data.colorMode !== undefined) setColorMode(data.colorMode);
         } else if (data.version && data.project && data.tasks) {
           // Legacy v1 format: convert to multi-project
+          const vr = data.viewRange || viewRange;
           setProjects([
             {
               id: generateProjectId(),
               name: data.project.name || "Imported Project",
               collapsed: false,
-              tasks: data.tasks,
+              tasks: data.tasks.map((t) => convertLegacyTask(t, vr)),
             },
           ]);
         } else {

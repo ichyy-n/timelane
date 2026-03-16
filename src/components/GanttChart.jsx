@@ -2,23 +2,63 @@ import { useRef, useState } from "react";
 
 const CELL_WIDTH = 80;
 const ROW_HEIGHT = 24;
-const BAR_HEIGHT = 8;
-const SUMMARY_BAR_HEIGHT = 8;
 
-// Compute summary range from children
-function getSummaryRange(task, allTasks) {
+// Get month index (0-based) relative to viewRange start
+function getMonthIndex(dateStr, viewRange) {
+  const d = new Date(dateStr + "T00:00:00");
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  return (year - viewRange.startYear) * 12 + (month - viewRange.startMonth);
+}
+
+// Day ratio within its month (0.0 to 1.0)
+function dayRatio(dateStr, isEnd) {
+  const d = new Date(dateStr + "T00:00:00");
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const day = d.getDate();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  if (isEnd) {
+    return day / daysInMonth;
+  }
+  return (day - 1) / daysInMonth;
+}
+
+// Convert a date string to pixel position
+function dateToPixel(dateStr, viewRange, isEnd) {
+  const monthIdx = getMonthIndex(dateStr, viewRange);
+  const ratio = dayRatio(dateStr, isEnd);
+  return (monthIdx + ratio) * CELL_WIDTH;
+}
+
+// Add days to a date string, return YYYY-MM-DD
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+// Compute summary date range from children
+function getSummaryDateRange(task, allTasks) {
   const children = allTasks.filter((t) => t.parentId === task.id);
   if (children.length === 0) return null;
-  let minStart = Infinity;
-  let maxEnd = -Infinity;
+  let minDate = null;
+  let maxDate = null;
   for (const c of children) {
-    if (c.startMonth < minStart) minStart = c.startMonth;
-    const end = c.type === "milestone"
-      ? (c.dates && c.dates.length > 0 ? Math.max(...c.dates.map(d => d.monthIndex !== undefined ? d.monthIndex : c.startMonth)) : c.startMonth)
-      : c.endMonth;
-    if (end > maxEnd) maxEnd = end;
+    const cStart = c.startDate;
+    const cEnd =
+      c.type === "milestone"
+        ? c.dates && c.dates.length > 0
+          ? c.dates.reduce((max, d) => (d.date > max ? d.date : max), c.dates[0].date)
+          : cStart
+        : c.endDate;
+    if (!minDate || cStart < minDate) minDate = cStart;
+    if (!maxDate || cEnd > maxDate) maxDate = cEnd;
   }
-  return { startMonth: minStart, endMonth: maxEnd };
+  return minDate && maxDate ? { startDate: minDate, endDate: maxDate } : null;
 }
 
 export default function GanttChart({
@@ -35,30 +75,31 @@ export default function GanttChart({
   const handleMouseDown = (e, task, edge, projectId) => {
     e.stopPropagation();
     const startX = e.clientX;
-    setDragging({ taskId: task.id, edge, startX, origStart: task.startMonth, origEnd: task.endMonth });
+    const origStartDate = task.startDate;
+    const origEndDate = task.endDate;
+    setDragging({ taskId: task.id, edge, startX });
 
     const handleMouseMove = (moveEvent) => {
       const dx = moveEvent.clientX - startX;
-      const monthDelta = Math.round(dx / CELL_WIDTH);
-      if (monthDelta === 0) return;
+      // Approximate: 1 month cell = ~30 days
+      const dayDelta = Math.round((dx / CELL_WIDTH) * 30);
+      if (dayDelta === 0) return;
 
-      let newStart = task.startMonth;
-      let newEnd = task.endMonth;
+      let newStart = origStartDate;
+      let newEnd = origEndDate;
 
       if (edge === "move") {
-        newStart = task.startMonth + monthDelta;
-        newEnd = task.endMonth + monthDelta;
+        newStart = addDays(origStartDate, dayDelta);
+        newEnd = addDays(origEndDate, dayDelta);
       } else if (edge === "left") {
-        newStart = task.startMonth + monthDelta;
+        newStart = addDays(origStartDate, dayDelta);
+        if (newStart > origEndDate) return;
       } else if (edge === "right") {
-        newEnd = task.endMonth + monthDelta;
+        newEnd = addDays(origEndDate, dayDelta);
+        if (newEnd < origStartDate) return;
       }
 
-      if (newStart < 0) newStart = 0;
-      if (newEnd >= months.length) newEnd = months.length - 1;
-      if (newStart > newEnd) return;
-
-      onTaskUpdate(task.id, { startMonth: newStart, endMonth: newEnd }, projectId);
+      onTaskUpdate(task.id, { startDate: newStart, endDate: newEnd }, projectId);
     };
 
     const handleMouseUp = () => {
@@ -119,26 +160,14 @@ export default function GanttChart({
           const projTasks = displayRows
             .filter((r) => r.type === "task" && r.projectId === projectId)
             .map((r) => r.task);
-          // Also need all tasks (not just visible) for summary
-          // We'll use the parent lookup from visible + hidden
           const hasKids = row.hasChildren;
           const isSummary = hasKids && !isMilestone;
 
           if (isMilestone) {
-            // Support multi-date milestones via dates array
-            const milestoneDates = task.dates && task.dates.length > 0
-              ? task.dates
-              : [{ date: null, label: "", monthIndex: task.startMonth }];
-
-            // Convert date strings to month indices if needed
-            const milestonePoints = milestoneDates.map((d) => {
-              if (d.monthIndex !== undefined) return d;
-              // Parse "YYYY-MM" to month index relative to view range
-              const [year, month] = d.date.split("-").map(Number);
-              const startTotal = viewRange.startYear * 12 + viewRange.startMonth;
-              const dateTotal = year * 12 + month;
-              return { ...d, monthIndex: dateTotal - startTotal };
-            });
+            const milestoneDates =
+              task.dates && task.dates.length > 0
+                ? task.dates
+                : [{ date: task.startDate, label: "" }];
 
             const monoColor = !colorMode ? "#333333" : undefined;
 
@@ -148,8 +177,9 @@ export default function GanttChart({
                 className="gantt-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
-                {milestonePoints.map((point, pi) => {
-                  const left = point.monthIndex * CELL_WIDTH + CELL_WIDTH / 2 - 5;
+                {milestoneDates.map((point, pi) => {
+                  const px = dateToPixel(point.date, viewRange, false);
+                  const left = px - 5;
                   return (
                     <div key={pi} style={{ position: "absolute", left }}>
                       <div
@@ -181,11 +211,11 @@ export default function GanttChart({
           }
 
           if (isSummary) {
-            // Need all project tasks for summary range (not just visible)
-            const summaryRange = getSummaryRange(task, projTasks);
+            const summaryRange = getSummaryDateRange(task, projTasks);
             if (summaryRange) {
-              const sLeft = summaryRange.startMonth * CELL_WIDTH + 2;
-              const sWidth = (summaryRange.endMonth - summaryRange.startMonth + 1) * CELL_WIDTH - 4;
+              const sLeft = dateToPixel(summaryRange.startDate, viewRange, false);
+              const sRight = dateToPixel(summaryRange.endDate, viewRange, true);
+              const sWidth = sRight - sLeft;
               return (
                 <div
                   key={task.id}
@@ -208,8 +238,9 @@ export default function GanttChart({
           }
 
           // Normal task bar
-          const left = task.startMonth * CELL_WIDTH;
-          const width = (task.endMonth - task.startMonth + 1) * CELL_WIDTH - 4;
+          const left = dateToPixel(task.startDate, viewRange, false);
+          const right = dateToPixel(task.endDate, viewRange, true);
+          const width = right - left;
 
           return (
             <div
@@ -220,7 +251,7 @@ export default function GanttChart({
               <div
                 className="gantt-bar"
                 style={{
-                  left: left + 2,
+                  left: left,
                   width: Math.max(width, 20),
                   backgroundColor: colorMode ? task.color : "#333333",
                 }}

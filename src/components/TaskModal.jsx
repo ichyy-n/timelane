@@ -1,14 +1,6 @@
 import { useState, useEffect } from "react";
 import { COLOR_PALETTE } from "../data/sampleData";
 
-function getMonthLabelFromOffset(offset, viewRange) {
-  let y = viewRange.startYear;
-  let m = viewRange.startMonth + offset;
-  while (m > 12) { m -= 12; y++; }
-  while (m < 1) { m += 12; y--; }
-  return `${y}-${String(m).padStart(2, "0")}`;
-}
-
 // Get all descendant IDs to prevent circular references
 function getDescendantIds(tasks, taskId) {
   const ids = new Set();
@@ -24,19 +16,28 @@ function getDescendantIds(tasks, taskId) {
   return ids;
 }
 
+// Format date for input[type="date"] default
+function defaultDate(viewRange, offsetMonths) {
+  let y = viewRange.startYear;
+  let m = viewRange.startMonth + offsetMonths;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  return `${y}-${String(m).padStart(2, "0")}-01`;
+}
+
 export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, viewRange }) {
   const [form, setForm] = useState({
     name: "",
     location: "",
     assignee: "",
-    startMonth: 0,
-    endMonth: 1,
+    startDate: defaultDate(viewRange, 0),
+    endDate: defaultDate(viewRange, 1),
     color: COLOR_PALETTE[0],
     type: "task",
     parentId: null,
     notes: "",
     projectId: currentProjectId || projects[0]?.id,
-    dates: [{ date: "", label: "" }],
+    dates: [{ date: defaultDate(viewRange, 0), label: "" }],
   });
 
   useEffect(() => {
@@ -45,8 +46,8 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         name: task.name,
         location: task.location,
         assignee: task.assignee,
-        startMonth: task.startMonth,
-        endMonth: task.endMonth ?? task.startMonth,
+        startDate: task.startDate,
+        endDate: task.endDate || task.startDate,
         color: task.color,
         type: task.type || "task",
         parentId: task.parentId || null,
@@ -54,7 +55,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         projectId: currentProjectId || projects[0]?.id,
         dates: task.dates && task.dates.length > 0
           ? task.dates.map((d) => ({ date: d.date || "", label: d.label || "" }))
-          : [{ date: getMonthLabelFromOffset(task.startMonth, viewRange), label: "" }],
+          : [{ date: task.startDate, label: "" }],
       });
     }
   }, [task, currentProjectId, projects]);
@@ -68,39 +69,22 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     if (!form.name.trim()) return;
     const data = {
       ...form,
-      startMonth: Number(form.startMonth),
-      endMonth: form.type === "milestone" ? Number(form.startMonth) : Number(form.endMonth),
+      startDate: form.startDate,
+      endDate: form.type === "milestone" ? form.startDate : form.endDate,
       parentId: form.parentId || null,
     };
     if (form.type === "milestone") {
-      // Filter out empty dates, keep only valid entries
       const validDates = form.dates.filter((d) => d.date);
       data.dates = validDates.length > 0 ? validDates : undefined;
-      // Set startMonth from first date for backward compatibility
       if (validDates.length > 0) {
-        const [year, month] = validDates[0].date.split("-").map(Number);
-        const startTotal = viewRange.startYear * 12 + viewRange.startMonth;
-        const dateTotal = year * 12 + month;
-        data.startMonth = dateTotal - startTotal;
-        data.endMonth = data.startMonth;
+        data.startDate = validDates[0].date;
+        data.endDate = data.startDate;
       }
     } else {
       delete data.dates;
     }
     onSave(data);
   };
-
-  const getMonthLabel = (offset) => {
-    let y = viewRange.startYear;
-    let m = viewRange.startMonth + offset;
-    while (m > 12) { m -= 12; y++; }
-    while (m < 1) { m += 12; y--; }
-    return `${y}-${String(m).padStart(2, "0")}`;
-  };
-
-  // Calculate total months in range
-  const totalMonths = (viewRange.endYear - viewRange.startYear) * 12 + (viewRange.endMonth - viewRange.startMonth) + 1;
-  const monthOptions = Array.from({ length: totalMonths }, (_, i) => i);
 
   // Parent task options from selected project
   const selectedProject = projects.find((p) => p.id === form.projectId);
@@ -190,32 +174,15 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
               <label>Milestone Dates</label>
               {form.dates.map((d, idx) => (
                 <div key={idx} className="milestone-date-row">
-                  <select
-                    value={d.date ? d.date.split("-")[0] : viewRange.startYear}
+                  <input
+                    type="date"
+                    value={d.date}
                     onChange={(e) => {
                       const newDates = [...form.dates];
-                      const month = d.date ? d.date.split("-")[1] : "01";
-                      newDates[idx] = { ...d, date: `${e.target.value}-${month}` };
+                      newDates[idx] = { ...d, date: e.target.value };
                       handleChange("dates", newDates);
                     }}
-                  >
-                    {Array.from({ length: 10 }, (_, i) => 2024 + i).map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={d.date ? parseInt(d.date.split("-")[1], 10) : 1}
-                    onChange={(e) => {
-                      const newDates = [...form.dates];
-                      const year = d.date ? d.date.split("-")[0] : String(viewRange.startYear);
-                      newDates[idx] = { ...d, date: `${year}-${String(e.target.value).padStart(2, "0")}` };
-                      handleChange("dates", newDates);
-                    }}
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                      <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
-                    ))}
-                  </select>
+                  />
                   <input
                     type="text"
                     placeholder="Label"
@@ -245,7 +212,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                 type="button"
                 className="btn-add-date"
                 onClick={() => {
-                  handleChange("dates", [...form.dates, { date: `${viewRange.startYear}-01`, label: "" }]);
+                  handleChange("dates", [...form.dates, { date: defaultDate(viewRange, 0), label: "" }]);
                 }}
               >
                 + Add Date
@@ -255,29 +222,19 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
             <div className="form-row">
               <label>
                 Start
-                <select
-                  value={form.startMonth}
-                  onChange={(e) => handleChange("startMonth", e.target.value)}
-                >
-                  {monthOptions.map((i) => (
-                    <option key={i} value={i}>
-                      {getMonthLabel(i)}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => handleChange("startDate", e.target.value)}
+                />
               </label>
               <label>
                 End
-                <select
-                  value={form.endMonth}
-                  onChange={(e) => handleChange("endMonth", e.target.value)}
-                >
-                  {monthOptions.map((i) => (
-                    <option key={i} value={i}>
-                      {getMonthLabel(i)}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => handleChange("endDate", e.target.value)}
+                />
               </label>
             </div>
           )}
