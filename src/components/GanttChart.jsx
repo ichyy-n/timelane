@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 const CELL_WIDTH = 80;
 const ROW_HEIGHT = 24;
+const NOTES_WIDTH = 160;
 
 // Get month index (0-based) relative to viewRange start
 function getMonthIndex(dateStr, viewRange) {
@@ -116,7 +117,7 @@ export default function GanttChart({
   return (
     <div className="gantt-chart" ref={chartRef}>
       {/* Month headers */}
-      <div className="gantt-header" style={{ width: months.length * CELL_WIDTH }}>
+      <div className="gantt-header" style={{ width: months.length * CELL_WIDTH + NOTES_WIDTH }}>
         {months.map((label, i) => (
           <div
             key={i}
@@ -126,10 +127,13 @@ export default function GanttChart({
             {label}
           </div>
         ))}
+        <div className="gantt-header-cell gantt-notes-header" style={{ width: NOTES_WIDTH }}>
+          備考
+        </div>
       </div>
 
       {/* Rows */}
-      <div className="gantt-body" style={{ width: months.length * CELL_WIDTH, height: displayRows.length * ROW_HEIGHT }}>
+      <div className="gantt-body" style={{ width: months.length * CELL_WIDTH + NOTES_WIDTH, height: displayRows.length * ROW_HEIGHT }}>
         {/* Grid lines */}
         <div className="gantt-grid">
           {months.map((_, i) => (
@@ -149,13 +153,20 @@ export default function GanttChart({
                 key={`proj-${row.project.id}`}
                 className="gantt-row gantt-project-header-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
-              />
+              >
+                <div className="gantt-notes-cell" style={{ left: months.length * CELL_WIDTH, width: NOTES_WIDTH }} />
+              </div>
             );
           }
 
           const task = row.task;
           const projectId = row.projectId;
           const isMilestone = task.type === "milestone";
+          const notesCell = (
+            <div className="gantt-notes-cell" style={{ left: months.length * CELL_WIDTH, width: NOTES_WIDTH }} title={task.notes || ""}>
+              {task.notes || ""}
+            </div>
+          );
 
           // Find all tasks in same project for summary calculation
           const projTasks = displayRows
@@ -178,7 +189,9 @@ export default function GanttChart({
                   key={task.id}
                   className="gantt-row"
                   style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
-                />
+                >
+                  {notesCell}
+                </div>
               );
             }
 
@@ -204,12 +217,14 @@ export default function GanttChart({
                     </div>
                   );
                 })}
+                {notesCell}
               </div>
             );
           }
 
           if (isSummary) {
-            const summaryRange = getSummaryDateRange(task, projTasks);
+            // Only show summary bar if parent task has its own dates set
+            const summaryRange = (task.startDate || task.endDate) ? getSummaryDateRange(task, projTasks) : null;
             if (summaryRange) {
               const sLeft = dateToPixel(summaryRange.startDate, viewRange, false);
               const sRight = dateToPixel(summaryRange.endDate, viewRange, true);
@@ -230,6 +245,7 @@ export default function GanttChart({
                     onClick={() => onTaskClick(task, projectId)}
                     title={task.name}
                   />
+                  {notesCell}
                 </div>
               );
             }
@@ -242,7 +258,9 @@ export default function GanttChart({
                 key={task.id}
                 className="gantt-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
-              />
+              >
+                {notesCell}
+              </div>
             );
           }
 
@@ -279,6 +297,7 @@ export default function GanttChart({
                   onMouseDown={(e) => handleMouseDown(e, task, "right", projectId)}
                 />
               </div>
+              {notesCell}
             </div>
           );
         })}

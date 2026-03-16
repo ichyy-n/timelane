@@ -34,7 +34,6 @@ export default function TaskList({
         <span className="col-name">Task</span>
         <span className="col-assignee">Assignee</span>
         <span className="col-location">Location</span>
-        <span className="col-notes">Notes</span>
         <span className="col-actions"></span>
       </div>
       {displayRows.map((row) => {
@@ -75,7 +74,6 @@ export default function TaskList({
               </span>
               <span className="col-assignee"></span>
               <span className="col-location"></span>
-              <span className="col-notes"></span>
               <span className="col-actions">
                 <button
                   className="btn-delete"
@@ -126,7 +124,6 @@ export default function TaskList({
             </span>
             <span className="col-assignee">{task.assignee}</span>
             <span className="col-location">{task.location}</span>
-            <span className="col-notes" title={task.notes || ""}>{task.notes}</span>
             <span className="col-actions">
               <button
                 className="btn-delete"
