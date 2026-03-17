@@ -4,6 +4,7 @@ import TaskList from "./components/TaskList";
 import GanttChart from "./components/GanttChart";
 import TaskModal from "./components/TaskModal";
 import { createSampleProjects, generateId, generateProjectId } from "./data/sampleData";
+import { exportToExcel } from "./utils/exportExcel";
 import "./App.css";
 
 function getMonthLabels(startYear, startMonth, endYear, endMonth) {
@@ -258,6 +259,10 @@ function App() {
     );
   };
 
+  const handleExportExcel = useCallback(() => {
+    exportToExcel(projects, viewRange);
+  }, [projects, viewRange]);
+
   const handleSave = () => {
     const data = { version: "2.0", projects, viewRange, colorMode };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -323,6 +328,7 @@ function App() {
         onAddProject={handleAddProject}
         onSave={handleSave}
         onLoad={handleLoad}
+        onExportExcel={handleExportExcel}
         viewRange={viewRange}
         onViewRangeChange={setViewRange}
         colorMode={colorMode}

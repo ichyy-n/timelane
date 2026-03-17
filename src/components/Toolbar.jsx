@@ -3,6 +3,7 @@ export default function Toolbar({
   onAddProject,
   onSave,
   onLoad,
+  onExportExcel,
   viewRange,
   onViewRangeChange,
   colorMode,
@@ -65,6 +66,7 @@ export default function Toolbar({
         <button onClick={onAddTask} className="btn-primary">
           + Add Task
         </button>
+        <button onClick={onExportExcel}>Excel出力</button>
         <button onClick={onSave}>Save JSON</button>
         <label className="btn-load">
           Load JSON
