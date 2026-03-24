@@ -10,10 +10,13 @@ export default function TaskList({
   onDelete,
   onDeleteProject,
   onProjectNameChange,
+  onReorder,
   colorMode = true,
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
+  // B3: Drag state
+  const [draggedItem, setDraggedItem] = useState(null);
 
   const startEditProjectName = (e, proj) => {
     e.stopPropagation();
@@ -100,8 +103,25 @@ export default function TaskList({
         return (
           <div
             key={task.id}
-            className="task-list-row"
+            className={`task-list-row${draggedItem?.taskId === task.id ? " dragging" : ""}`}
             onClick={() => onTaskClick(task, projectId)}
+            draggable
+            onDragStart={(e) => {
+              setDraggedItem({ taskId: task.id, projectId });
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragEnd={() => setDraggedItem(null)}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggedItem && draggedItem.taskId !== task.id) {
+                onReorder(draggedItem, { taskId: task.id, projectId });
+              }
+              setDraggedItem(null);
+            }}
           >
             <span
               className="col-name"

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Toolbar from "./components/Toolbar";
 import TaskList from "./components/TaskList";
 import GanttChart from "./components/GanttChart";
@@ -99,32 +99,138 @@ function getDescendantIds(tasks, parentId) {
   return ids;
 }
 
+// A3: Dynamic viewRange initial value
+function computeDefaultViewRange() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  let startMonth = currentMonth - 6;
+  let startYear = currentYear;
+  if (startMonth < 1) { startMonth += 12; startYear -= 1; }
+  let endMonth = currentMonth + 6;
+  let endYear = currentYear;
+  if (endMonth > 12) { endMonth -= 12; endYear += 1; }
+  return { startYear, startMonth, endYear, endMonth };
+}
+
+// A2: History constants
+const MAX_HISTORY = 50;
+
 function App() {
   const [projects, setProjects] = useState(createSampleProjects);
   const [modalState, setModalState] = useState({ open: false, task: null, projectId: null });
   const [collapsedIds, setCollapsedIds] = useState(new Set());
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
   const [colorMode, setColorMode] = useState(true);
-  const [viewRange, setViewRange] = useState({
-    startYear: 2025,
-    startMonth: 4,
-    endYear: 2026,
-    endMonth: 3,
-  });
+  const [viewRange, setViewRange] = useState(computeDefaultViewRange);
+
+  // A2: Undo/Redo - use refs for history to avoid async state coordination issues
+  const historyRef = useRef({ stack: [], index: -1 });
+  const isUndoRedoRef = useRef(false);
+
+  // B2: Scroll sync refs
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const isSyncingRef = useRef(false);
+
+  // B5: Inline project creation
+  const [addingProject, setAddingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+
+  // A2: Initialize history
+  useEffect(() => {
+    historyRef.current = { stack: [projects], index: 0 };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A2: setProjects wrapper that records history
+  const setProjectsWithHistory = useCallback((updater) => {
+    setProjects((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (!isUndoRedoRef.current) {
+        const h = historyRef.current;
+        const newStack = h.stack.slice(0, h.index + 1);
+        newStack.push(next);
+        if (newStack.length > MAX_HISTORY) newStack.shift();
+        historyRef.current = { stack: newStack, index: newStack.length - 1 };
+      }
+      return next;
+    });
+  }, []);
+
+  // A2: Undo/Redo keyboard handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const h = historyRef.current;
+        if (h.index > 0) {
+          h.index -= 1;
+          isUndoRedoRef.current = true;
+          setProjects(h.stack[h.index]);
+          setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+        }
+      }
+      if (isMod && ((e.key === "z" && e.shiftKey) || (e.key === "y"))) {
+        e.preventDefault();
+        const h = historyRef.current;
+        if (h.index < h.stack.length - 1) {
+          h.index += 1;
+          isUndoRedoRef.current = true;
+          setProjects(h.stack[h.index]);
+          setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // A1: Electron auto-save - load on mount
+  useEffect(() => {
+    window.electronAPI?.loadData().then((data) => {
+      if (data && data.projects) {
+        isUndoRedoRef.current = true;
+        setProjects(data.projects);
+        if (data.viewRange) setViewRange(data.viewRange);
+        if (data.colorMode !== undefined) setColorMode(data.colorMode);
+        setTimeout(() => {
+          isUndoRedoRef.current = false;
+          historyRef.current = { stack: [data.projects], index: 0 };
+        }, 0);
+      }
+    }).catch(() => { /* not in Electron, ignore */ });
+  }, []);
+
+  // A1: Debounced auto-save on change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.electronAPI?.saveData({ version: "2.0", projects, viewRange, colorMode });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [projects, viewRange, colorMode]);
+
+  // B2: Scroll sync handler
+  const syncScroll = useCallback((source) => (e) => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    const target = source === "left" ? rightPanelRef.current : leftPanelRef.current;
+    if (target) target.scrollTop = e.currentTarget.scrollTop;
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
+  }, []);
 
   const months = useMemo(
     () => getMonthLabels(viewRange.startYear, viewRange.startMonth, viewRange.endYear, viewRange.endMonth),
     [viewRange]
   );
 
-  // Build display rows: [{type: "project-header", project} | {type: "task", task, projectId}]
+  // Build display rows
   const displayRows = useMemo(() => {
     const rows = [];
     for (const proj of projects) {
       rows.push({ type: "project-header", project: proj });
       if (!collapsedProjects.has(proj.id)) {
         const { ordered, depthMap } = buildTreeOrder(proj.tasks);
-        // Filter out tasks hidden by collapsed parent tasks
         const hidden = new Set();
         for (const id of collapsedIds) {
           const descs = getDescendantIds(proj.tasks, id);
@@ -178,10 +284,9 @@ function App() {
 
   const handleModalSave = (formData) => {
     const targetProjectId = formData.projectId || modalState.projectId;
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((proj) => {
         if (proj.id !== targetProjectId) {
-          // If editing and task was in a different project, remove it from old project
           if (modalState.task && proj.tasks.some((t) => t.id === modalState.task.id)) {
             return { ...proj, tasks: proj.tasks.filter((t) => t.id !== modalState.task.id) };
           }
@@ -189,7 +294,6 @@ function App() {
         }
         const { projectId: _pid, ...taskData } = formData;
         if (modalState.task) {
-          // Check if task was already in this project
           const existsHere = proj.tasks.some((t) => t.id === modalState.task.id);
           if (existsHere) {
             return {
@@ -199,7 +303,6 @@ function App() {
               ),
             };
           } else {
-            // Moving from another project
             return {
               ...proj,
               tasks: [...proj.tasks, { ...modalState.task, ...taskData }],
@@ -216,7 +319,7 @@ function App() {
   };
 
   const handleDeleteTask = (taskId, projectId) => {
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((proj) => {
         if (proj.id !== projectId) return proj;
         const descs = getDescendantIds(proj.tasks, taskId);
@@ -227,7 +330,7 @@ function App() {
   };
 
   const handleTaskUpdate = useCallback((taskId, updates, projectId) => {
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((proj) => {
         if (proj.id !== projectId) return proj;
         return {
@@ -238,26 +341,59 @@ function App() {
         };
       })
     );
-  }, []);
+  }, [setProjectsWithHistory]);
 
-  const handleAddProject = () => {
-    const name = prompt("Project name:");
-    if (!name) return;
-    setProjects((prev) => [
+  // B5: Inline project creation (replaces prompt())
+  const handleStartAddProject = () => {
+    setAddingProject(true);
+    setNewProjectName("");
+  };
+
+  const handleConfirmAddProject = () => {
+    const name = newProjectName.trim();
+    if (!name) {
+      setAddingProject(false);
+      return;
+    }
+    setProjectsWithHistory((prev) => [
       ...prev,
       { id: generateProjectId(), name, collapsed: false, tasks: [] },
     ]);
+    setAddingProject(false);
+    setNewProjectName("");
+  };
+
+  const handleCancelAddProject = () => {
+    setAddingProject(false);
+    setNewProjectName("");
   };
 
   const handleDeleteProject = (projectId) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    setProjectsWithHistory((prev) => prev.filter((p) => p.id !== projectId));
   };
 
   const handleProjectNameChange = (projectId, name) => {
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, name } : p))
     );
   };
+
+  // B3: Task reorder (drag & drop)
+  const handleReorderTask = useCallback((draggedItem, targetItem) => {
+    if (draggedItem.projectId !== targetItem.projectId) return;
+    setProjectsWithHistory((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== draggedItem.projectId) return proj;
+        const tasks = [...proj.tasks];
+        const fromIdx = tasks.findIndex((t) => t.id === draggedItem.taskId);
+        const toIdx = tasks.findIndex((t) => t.id === targetItem.taskId);
+        if (fromIdx === -1 || toIdx === -1) return proj;
+        const [moved] = tasks.splice(fromIdx, 1);
+        tasks.splice(toIdx, 0, moved);
+        return { ...proj, tasks };
+      })
+    );
+  }, [setProjectsWithHistory]);
 
   const handleExportExcel = useCallback(() => {
     exportToExcel(projects, viewRange);
@@ -285,18 +421,16 @@ function App() {
         const data = JSON.parse(event.target.result);
         if (data.version === "2.0" && data.projects) {
           const vr = data.viewRange || viewRange;
-          // Convert legacy startMonth/endMonth tasks to startDate/endDate
           const convertedProjects = data.projects.map((proj) => ({
             ...proj,
             tasks: proj.tasks.map((t) => convertLegacyTask(t, vr)),
           }));
-          setProjects(convertedProjects);
+          setProjectsWithHistory(convertedProjects);
           if (data.viewRange) setViewRange(data.viewRange);
           if (data.colorMode !== undefined) setColorMode(data.colorMode);
         } else if (data.version && data.project && data.tasks) {
-          // Legacy v1 format: convert to multi-project
           const vr = data.viewRange || viewRange;
-          setProjects([
+          setProjectsWithHistory([
             {
               id: generateProjectId(),
               name: data.project.name || "Imported Project",
@@ -325,7 +459,7 @@ function App() {
     <div className="app">
       <Toolbar
         onAddTask={() => handleAddTask(null)}
-        onAddProject={handleAddProject}
+        onAddProject={handleStartAddProject}
         onSave={handleSave}
         onLoad={handleLoad}
         onExportExcel={handleExportExcel}
@@ -334,8 +468,25 @@ function App() {
         colorMode={colorMode}
         onColorModeChange={setColorMode}
       />
+      {/* B5: Inline project name input */}
+      {addingProject && (
+        <div className="inline-project-input">
+          <input
+            type="text"
+            placeholder="Project name..."
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleConfirmAddProject();
+              if (e.key === "Escape") handleCancelAddProject();
+            }}
+            onBlur={handleCancelAddProject}
+            autoFocus
+          />
+        </div>
+      )}
       <div className="main-content">
-        <div className="left-panel">
+        <div className="left-panel" ref={leftPanelRef} onScroll={syncScroll("left")}>
           <TaskList
             displayRows={displayRows}
             collapsedIds={collapsedIds}
@@ -346,10 +497,11 @@ function App() {
             onDelete={handleDeleteTask}
             onDeleteProject={handleDeleteProject}
             onProjectNameChange={handleProjectNameChange}
+            onReorder={handleReorderTask}
             colorMode={colorMode}
           />
         </div>
-        <div className="right-panel">
+        <div className="right-panel" ref={rightPanelRef} onScroll={syncScroll("right")}>
           <GanttChart
             displayRows={displayRows}
             months={months}

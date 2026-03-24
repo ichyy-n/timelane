@@ -36,6 +36,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     type: "task",
     parentId: null,
     notes: "",
+    progress: 0,
     projectId: currentProjectId || projects[0]?.id,
     dates: [{ date: defaultDate(viewRange, 0), label: "" }],
   });
@@ -52,6 +53,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         type: task.type || "task",
         parentId: task.parentId || null,
         notes: task.notes || "",
+        progress: task.progress || 0,
         projectId: currentProjectId || projects[0]?.id,
         dates: task.dates && task.dates.length > 0
           ? task.dates.map((d) => ({ date: d.date || "", label: d.label || "" }))
@@ -72,6 +74,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
       startDate: form.startDate || null,
       endDate: form.type === "milestone" ? (form.startDate || null) : (form.endDate || null),
       parentId: form.parentId || null,
+      progress: form.type === "milestone" ? undefined : (form.progress || 0),
     };
     if (form.type === "milestone") {
       const validDates = form.dates ? form.dates.filter((d) => d.date) : [];
@@ -83,6 +86,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         data.startDate = null;
         data.endDate = null;
       }
+      delete data.progress;
     } else {
       delete data.dates;
     }
@@ -220,50 +224,65 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
               </button>
             </div>
           ) : (
-            <div className="form-row">
+            <>
+              <div className="form-row">
+                <label>
+                  Start
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="date"
+                      value={form.startDate || ""}
+                      onChange={(e) => handleChange("startDate", e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    {form.startDate && (
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => handleChange("startDate", "")}
+                        title="Clear start date"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  End
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="date"
+                      value={form.endDate || ""}
+                      onChange={(e) => handleChange("endDate", e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    {form.endDate && (
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => handleChange("endDate", "")}
+                        title="Clear end date"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              {/* B4: Progress field */}
               <label>
-                Start
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    type="date"
-                    value={form.startDate || ""}
-                    onChange={(e) => handleChange("startDate", e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.startDate && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => handleChange("startDate", "")}
-                      title="Clear start date"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                Progress: {form.progress}%
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={form.progress}
+                  onChange={(e) => handleChange("progress", Number(e.target.value))}
+                />
               </label>
-              <label>
-                End
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    type="date"
-                    value={form.endDate || ""}
-                    onChange={(e) => handleChange("endDate", e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.endDate && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => handleChange("endDate", "")}
-                      title="Clear end date"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </label>
-            </div>
+            </>
           )}
 
           <label>
