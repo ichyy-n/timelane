@@ -1,6 +1,28 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
+
+const DATA_FILE = path.join(app.getPath('userData'), 'gantt-data.json');
+
+ipcMain.handle('save-data', async (_event, data) => {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('load-data', async () => {
+  try {
+    if (!fs.existsSync(DATA_FILE)) return null;
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+});
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -10,6 +32,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
