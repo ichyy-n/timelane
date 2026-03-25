@@ -133,6 +133,12 @@ function App() {
   const rightPanelRef = useRef(null);
   const isSyncingRef = useRef(false);
 
+  // C2: viewMode state
+  const [viewMode, setViewMode] = useState('month');
+
+  // C3: Search/filter state
+  const [searchQuery, setSearchQuery] = useState('');
+
   // B5: Inline project creation
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -251,6 +257,23 @@ function App() {
     }
     return rows;
   }, [projects, collapsedProjects, collapsedIds]);
+
+  // C3: Filtered display rows
+  const filteredDisplayRows = useMemo(() => {
+    if (!searchQuery.trim()) return displayRows;
+    const q = searchQuery.toLowerCase();
+    return displayRows.filter(row => {
+      if (row.type === 'project-header') {
+        return row.project.name.toLowerCase().includes(q);
+      }
+      const t = row.task;
+      return (
+        t.name?.toLowerCase().includes(q) ||
+        t.assignee?.toLowerCase().includes(q) ||
+        t.location?.toLowerCase().includes(q)
+      );
+    });
+  }, [displayRows, searchQuery]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
@@ -467,6 +490,10 @@ function App() {
         onViewRangeChange={setViewRange}
         colorMode={colorMode}
         onColorModeChange={setColorMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
       {/* B5: Inline project name input */}
       {addingProject && (
@@ -488,7 +515,7 @@ function App() {
       <div className="main-content">
         <div className="left-panel" ref={leftPanelRef} onScroll={syncScroll("left")}>
           <TaskList
-            displayRows={displayRows}
+            displayRows={filteredDisplayRows}
             collapsedIds={collapsedIds}
             collapsedProjects={collapsedProjects}
             onToggleCollapse={toggleCollapse}
@@ -503,12 +530,14 @@ function App() {
         </div>
         <div className="right-panel" ref={rightPanelRef} onScroll={syncScroll("right")}>
           <GanttChart
-            displayRows={displayRows}
+            displayRows={filteredDisplayRows}
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}
             colorMode={colorMode}
             viewRange={viewRange}
+            viewMode={viewMode}
+            tasks={allTasksFlat}
           />
         </div>
       </div>
@@ -528,6 +557,7 @@ function App() {
           onSave={handleModalSave}
           onClose={handleModalClose}
           viewRange={viewRange}
+          allTasks={allTasksFlat}
         />
       )}
     </div>
