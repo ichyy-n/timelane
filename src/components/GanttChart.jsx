@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 
 const CELL_WIDTH = 80;
 const ROW_HEIGHT = 24;
@@ -25,11 +25,53 @@ function dayRatio(dateStr, isEnd) {
   return (day - 1) / daysInMonth;
 }
 
-// Convert a date string to pixel position
+// Convert a date string to pixel position (month view)
 function dateToPixel(dateStr, viewRange, isEnd) {
   const monthIdx = getMonthIndex(dateStr, viewRange);
   const ratio = dayRatio(dateStr, isEnd);
   return (monthIdx + ratio) * CELL_WIDTH;
+}
+
+// C2: Generate week labels from viewRange
+function getWeekLabels(viewRange) {
+  const weeks = [];
+  const d = new Date(viewRange.startYear, viewRange.startMonth - 1, 1);
+  const end = new Date(viewRange.endYear, viewRange.endMonth, 0);
+  // Align to Monday
+  const dayOfWeek = d.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  d.setDate(d.getDate() + mondayOffset);
+  while (d <= end) {
+    const monday = new Date(d);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const label = `${String(monday.getMonth() + 1).padStart(2, "0")}/${String(monday.getDate()).padStart(2, "0")}`;
+    weeks.push({
+      label,
+      startDate: monday.toISOString().split("T")[0],
+      endDate: sunday.toISOString().split("T")[0],
+    });
+    d.setDate(d.getDate() + 7);
+  }
+  return weeks;
+}
+
+// C2: Convert a date string to pixel position (week view)
+function dateToPixelWeek(dateStr, weeks) {
+  const date = new Date(dateStr + "T00:00:00");
+  for (let i = 0; i < weeks.length; i++) {
+    const wStart = new Date(weeks[i].startDate + "T00:00:00");
+    const wEnd = new Date(weeks[i].endDate + "T00:00:00");
+    if (date >= wStart && date <= wEnd) {
+      const daysSinceStart = (date - wStart) / (1000 * 60 * 60 * 24);
+      return (i + daysSinceStart / 7) * CELL_WIDTH;
+    }
+  }
+  // Before first week or after last week: extrapolate
+  if (weeks.length === 0) return 0;
+  const firstStart = new Date(weeks[0].startDate + "T00:00:00");
+  const daysDiff = (date - firstStart) / (1000 * 60 * 60 * 24);
+  return (daysDiff / 7) * CELL_WIDTH;
 }
 
 // Add days to a date string, return YYYY-MM-DD
@@ -70,9 +112,68 @@ export default function GanttChart({
   onTaskUpdate,
   colorMode = true,
   viewRange,
+  scrollRef,
+  onScroll,
+  tasks = [],          // C1: flat list of all tasks (for dependency arrows)
+  viewMode = "month",  // C2: 'month' | 'week'
+  searchQuery = "",    // C3: filter highlight query
 }) {
   const chartRef = useRef(null);
   const [dragging, setDragging] = useState(null);
+
+  // C2: Week labels for week view
+  const weekLabels = useMemo(() => {
+    if (viewMode !== "week") return [];
+    return getWeekLabels(viewRange);
+  }, [viewMode, viewRange]);
+
+  // Determine header labels and column count based on viewMode
+  const headerLabels = viewMode === "week" ? weekLabels.map((w) => w.label) : months;
+  const columnCount = headerLabels.length;
+
+  // C2: Pixel conversion function based on viewMode
+  const toPixel = (dateStr, isEnd) => {
+    if (viewMode === "week") {
+      return dateToPixelWeek(dateStr, weekLabels);
+    }
+    return dateToPixel(dateStr, viewRange, isEnd);
+  };
+
+  // C1: Compute dependency arrow paths
+  const arrowPaths = useMemo(() => {
+    if (!tasks || tasks.length === 0) return [];
+    const paths = [];
+    // Build a map of taskId -> rowIndex for visible rows
+    const taskRowIndex = new Map();
+    displayRows.forEach((row, idx) => {
+      if (row.type === "task" && row.task) {
+        taskRowIndex.set(row.task.id, idx);
+      }
+    });
+    // Build a map of taskId -> task for coordinate lookup
+    const taskMap = new Map();
+    tasks.forEach((t) => taskMap.set(t.id, t));
+
+    for (const task of tasks) {
+      if (!task.dependencies || task.dependencies.length === 0) continue;
+      const depRowIdx = taskRowIndex.get(task.id);
+      if (depRowIdx === undefined) continue; // not visible
+
+      for (const depId of task.dependencies) {
+        const srcTask = taskMap.get(depId);
+        if (!srcTask || !srcTask.endDate) continue;
+        const srcRowIdx = taskRowIndex.get(depId);
+        if (srcRowIdx === undefined) continue; // source not visible
+
+        const x1 = toPixel(srcTask.endDate, true);
+        const x2 = toPixel(task.startDate || srcTask.endDate, false);
+        const y1 = srcRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+        const y2 = depRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+        paths.push({ key: `${depId}->${task.id}`, x1, y1, x2, y2 });
+      }
+    }
+    return paths;
+  }, [tasks, displayRows, viewMode, weekLabels, viewRange]);
 
   const handleMouseDown = (e, task, edge, projectId) => {
     e.stopPropagation();
@@ -114,11 +215,28 @@ export default function GanttChart({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  // B1: Today line position
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayPixel = toPixel(todayStr, false);
+  const totalWidth = columnCount * CELL_WIDTH;
+  const showTodayLine = todayPixel >= 0 && todayPixel <= totalWidth;
+
+  const todayLineStyle = {
+    position: 'absolute',
+    left: todayPixel,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    background: '#ef4444',
+    pointerEvents: 'none',
+    zIndex: 10,
+  };
+
   return (
     <div className="gantt-chart" ref={chartRef}>
-      {/* Month headers */}
-      <div className="gantt-header" style={{ width: months.length * CELL_WIDTH + NOTES_WIDTH }}>
-        {months.map((label, i) => (
+      {/* Headers (month or week) */}
+      <div className="gantt-header" style={{ width: columnCount * CELL_WIDTH + NOTES_WIDTH, position: 'relative' }}>
+        {headerLabels.map((label, i) => (
           <div
             key={i}
             className="gantt-header-cell"
@@ -130,13 +248,20 @@ export default function GanttChart({
         <div className="gantt-header-cell gantt-notes-header" style={{ width: NOTES_WIDTH }}>
           備考
         </div>
+        {/* B1: Today line in header */}
+        {showTodayLine && <div style={todayLineStyle} />}
       </div>
 
       {/* Rows */}
-      <div className="gantt-body" style={{ width: months.length * CELL_WIDTH + NOTES_WIDTH, height: displayRows.length * ROW_HEIGHT }}>
+      <div
+        className="gantt-body"
+        style={{ width: columnCount * CELL_WIDTH + NOTES_WIDTH, height: displayRows.length * ROW_HEIGHT, position: 'relative' }}
+        ref={scrollRef}
+        onScroll={onScroll}
+      >
         {/* Grid lines */}
         <div className="gantt-grid">
-          {months.map((_, i) => (
+          {headerLabels.map((_, i) => (
             <div
               key={i}
               className="gantt-grid-col"
@@ -144,6 +269,25 @@ export default function GanttChart({
             />
           ))}
         </div>
+
+        {/* C1: SVG dependency arrows overlay */}
+        {arrowPaths.length > 0 && (
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+            {arrowPaths.map(({ key, x1, y1, x2, y2 }) => (
+              <g key={key}>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#6366f1" strokeWidth="1.5" markerEnd="url(#arrow)" />
+              </g>
+            ))}
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
+              </marker>
+            </defs>
+          </svg>
+        )}
+
+        {/* B1: Today line in body */}
+        {showTodayLine && <div style={todayLineStyle} />}
 
         {displayRows.map((row, rowIndex) => {
           // Project header row
@@ -154,7 +298,7 @@ export default function GanttChart({
                 className="gantt-row gantt-project-header-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
-                <div className="gantt-notes-cell" style={{ left: months.length * CELL_WIDTH, width: NOTES_WIDTH }} />
+                <div className="gantt-notes-cell" style={{ left: columnCount * CELL_WIDTH, width: NOTES_WIDTH }} />
               </div>
             );
           }
@@ -163,7 +307,7 @@ export default function GanttChart({
           const projectId = row.projectId;
           const isMilestone = task.type === "milestone";
           const notesCell = (
-            <div className="gantt-notes-cell" style={{ left: months.length * CELL_WIDTH, width: NOTES_WIDTH }} title={task.notes || ""}>
+            <div className="gantt-notes-cell" style={{ left: columnCount * CELL_WIDTH, width: NOTES_WIDTH }} title={task.notes || ""}>
               {task.notes || ""}
             </div>
           );
@@ -204,7 +348,7 @@ export default function GanttChart({
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
                 {milestoneDates.map((point, pi) => {
-                  const px = dateToPixel(point.date, viewRange, false);
+                  const px = toPixel(point.date, false);
                   const left = px - 5;
                   return (
                     <div key={pi} style={{ position: "absolute", left }}>
@@ -226,8 +370,8 @@ export default function GanttChart({
             // Only show summary bar if parent task has its own dates set
             const summaryRange = (task.startDate || task.endDate) ? getSummaryDateRange(task, projTasks) : null;
             if (summaryRange) {
-              const sLeft = dateToPixel(summaryRange.startDate, viewRange, false);
-              const sRight = dateToPixel(summaryRange.endDate, viewRange, true);
+              const sLeft = toPixel(summaryRange.startDate, false);
+              const sRight = toPixel(summaryRange.endDate, true);
               const sWidth = sRight - sLeft;
               return (
                 <div
@@ -264,15 +408,19 @@ export default function GanttChart({
             );
           }
 
-          const left = dateToPixel(task.startDate, viewRange, false);
-          const right = dateToPixel(task.endDate, viewRange, true);
+          const left = toPixel(task.startDate, false);
+          const right = toPixel(task.endDate, true);
           const width = right - left;
+
+          // C3: Dim non-matching tasks when searchQuery is active
+          const isMatch = !searchQuery || (task.name && task.name.toLowerCase().includes(searchQuery.toLowerCase()));
+          const rowOpacity = searchQuery && !isMatch ? 0.3 : 1;
 
           return (
             <div
               key={task.id}
               className="gantt-row"
-              style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT, opacity: rowOpacity }}
             >
               <div
                 className="gantt-bar"
@@ -284,6 +432,18 @@ export default function GanttChart({
                 onClick={() => onTaskClick(task, projectId)}
                 title={task.name}
               >
+                {/* B4: Progress overlay */}
+                {task.progress > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${task.progress}%`,
+                    background: 'rgba(255, 255, 255, 0.4)',
+                    pointerEvents: 'none',
+                  }} />
+                )}
                 <div
                   className="bar-handle bar-handle-left"
                   onMouseDown={(e) => handleMouseDown(e, task, "left", projectId)}

@@ -12,6 +12,7 @@ export default function TaskList({
   onProjectNameChange,
   onReorder,
   colorMode = true,
+  searchQuery = "",  // C3: filter highlight query
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -34,9 +35,9 @@ export default function TaskList({
   return (
     <div className="task-list">
       <div className="task-list-header">
-        <span className="col-name">Task</span>
-        <span className="col-assignee">Assignee</span>
-        <span className="col-location">Location</span>
+        <span className="col-name">タスク名</span>
+        <span className="col-assignee">担当者</span>
+        <span className="col-location">場所</span>
         <span className="col-actions"></span>
       </div>
       {displayRows.map((row) => {
@@ -84,7 +85,7 @@ export default function TaskList({
                     e.stopPropagation();
                     onDeleteProject(proj.id);
                   }}
-                  title="Delete Project"
+                  title="プロジェクトを削除"
                 >
                   ×
                 </button>
@@ -100,10 +101,15 @@ export default function TaskList({
         const isMilestone = task.type === "milestone";
         const projectId = row.projectId;
 
+        // C3: Dim non-matching tasks when searchQuery is active
+        const isMatch = !searchQuery || (task.name && task.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        const rowOpacity = searchQuery && !isMatch ? 0.3 : 1;
+
         return (
           <div
             key={task.id}
             className={`task-list-row${draggedItem?.taskId === task.id ? " dragging" : ""}`}
+            style={{ opacity: rowOpacity }}
             onClick={() => onTaskClick(task, projectId)}
             draggable
             onDragStart={(e) => {
@@ -151,7 +157,7 @@ export default function TaskList({
                   e.stopPropagation();
                   onDelete(task.id, projectId);
                 }}
-                title="Delete"
+                title="タスクを削除"
               >
                 ×
               </button>
