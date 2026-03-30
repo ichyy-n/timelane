@@ -28,7 +28,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1400,
     height: 800,
-    title: 'ガントチャート',
+    title: 'Timelane',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
