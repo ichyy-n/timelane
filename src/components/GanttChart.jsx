@@ -111,6 +111,7 @@ export default function GanttChart({
   onTaskClick,
   onTaskUpdate,
   colorMode = true,
+  darkMode = false,
   viewRange,
   scrollRef,
   onScroll,
@@ -215,6 +216,28 @@ export default function GanttChart({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  // Month boundary positions for dashed vertical lines
+  const monthBoundaries = useMemo(() => {
+    const boundaries = [];
+    const { startYear, startMonth, endYear, endMonth } = viewRange;
+    // Iterate from second month to last month (boundaries between months)
+    let year = startYear;
+    let month = startMonth;
+    // Skip first boundary (left edge of chart) — start from second month
+    for (let i = 1; ; i++) {
+      let m = month + i;
+      let y = year;
+      while (m > 12) { m -= 12; y++; }
+      if (y > endYear || (y === endYear && m > endMonth)) break;
+      const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
+      const x = toPixel(dateStr, false);
+      if (x > 0 && x < columnCount * CELL_WIDTH) {
+        boundaries.push({ x, label: `${y}-${String(m).padStart(2, "0")}` });
+      }
+    }
+    return boundaries;
+  }, [viewRange, viewMode, weekLabels, columnCount]);
+
   // B1: Today line position
   const todayStr = new Date().toISOString().split('T')[0];
   const todayPixel = toPixel(todayStr, false);
@@ -248,6 +271,19 @@ export default function GanttChart({
         <div className="gantt-header-cell gantt-notes-header" style={{ width: NOTES_WIDTH }}>
           備考
         </div>
+        {/* Month boundary dashed lines in header */}
+        {monthBoundaries.map((b, i) => (
+          <div key={`mb-h-${i}`} style={{
+            position: 'absolute',
+            left: b.x,
+            top: 0,
+            bottom: 0,
+            width: 0,
+            borderLeft: '1px dashed rgba(0,0,0,0.15)',
+            pointerEvents: 'none',
+            zIndex: 5,
+          }} />
+        ))}
         {/* B1: Today line in header */}
         {showTodayLine && <div style={todayLineStyle} />}
       </div>
@@ -286,6 +322,19 @@ export default function GanttChart({
           </svg>
         )}
 
+        {/* Month boundary dashed lines in body */}
+        {monthBoundaries.map((b, i) => (
+          <div key={`mb-b-${i}`} style={{
+            position: 'absolute',
+            left: b.x,
+            top: 0,
+            bottom: 0,
+            width: 0,
+            borderLeft: '1px dashed rgba(0,0,0,0.15)',
+            pointerEvents: 'none',
+            zIndex: 5,
+          }} />
+        ))}
         {/* B1: Today line in body */}
         {showTodayLine && <div style={todayLineStyle} />}
 
@@ -339,7 +388,7 @@ export default function GanttChart({
               );
             }
 
-            const monoColor = !colorMode ? "#333333" : undefined;
+            const monoColor = !colorMode ? (darkMode ? "#cccccc" : "#333333") : undefined;
 
             return (
               <div
@@ -384,7 +433,7 @@ export default function GanttChart({
                     style={{
                       left: sLeft,
                       width: Math.max(sWidth, 20),
-                      backgroundColor: colorMode ? task.color : "#333333",
+                      backgroundColor: colorMode ? task.color : (darkMode ? "#cccccc" : "#333333"),
                     }}
                     onClick={() => onTaskClick(task, projectId)}
                     title={task.name}
@@ -427,7 +476,7 @@ export default function GanttChart({
                 style={{
                   left: left,
                   width: Math.max(width, 20),
-                  backgroundColor: colorMode ? task.color : "#333333",
+                  backgroundColor: colorMode ? task.color : (darkMode ? "#cccccc" : "#333333"),
                 }}
                 onClick={() => onTaskClick(task, projectId)}
                 title={task.name}

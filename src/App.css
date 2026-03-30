@@ -12,6 +12,24 @@
   --accent-hover: #0b5ed7;
   --danger: #e63946;
   --project-header-bg: #e8f0fe;
+  --project-header-hover: #d4e4fc;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] {
+  --bg-primary: #1a1d21;
+  --bg-secondary: #22262b;
+  --bg-surface: #2a2e34;
+  --bg-hover: #33383f;
+  --text-primary: #e1e3e6;
+  --text-secondary: #a0a4aa;
+  --text-muted: #6c7177;
+  --border: #3a3f46;
+  --accent: #4da3ff;
+  --accent-hover: #3b8de8;
+  --danger: #ff6b7a;
+  --project-header-bg: #1e2a3a;
+  --project-header-hover: #253548;
 }
 
 * {
@@ -179,7 +197,7 @@ body {
 }
 
 .project-header-row:hover {
-  background: #d4e4fc;
+  background: var(--project-header-hover, #d4e4fc);
 }
 
 .project-header-name {
@@ -611,6 +629,18 @@ body {
 .btn-color-active {
   background: #fff3cd !important;
   border-color: #ffc107 !important;
+}
+
+/* Dark mode toggle */
+.btn-dark-active {
+  background: #2a2e34 !important;
+  border-color: #4da3ff !important;
+  color: #4da3ff !important;
+}
+
+[data-theme="dark"] .btn-color-active {
+  background: #3a3520 !important;
+  border-color: #b8860b !important;
 }
 
 /* Milestone dates editing */

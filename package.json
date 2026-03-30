@@ -1,7 +1,6 @@
 {
-  "name": "ganttchart",
-  "private": true,
-  "version": "0.0.0",
+  "name": "timelane",
+  "version": "0.1.0",
   "type": "module",
   "main": "main.cjs",
   "scripts": {
@@ -32,8 +31,8 @@
     "vite": "^8.0.0"
   },
   "build": {
-    "appId": "com.ganttchart.app",
-    "productName": "ガントチャート",
+    "appId": "com.timelane.app",
+    "productName": "Timelane",
     "directories": {
       "output": "dist-electron"
     },
@@ -45,7 +44,8 @@
     },
     "files": [
       "dist/**/*",
-      "main.cjs"
+      "main.cjs",
+      "preload.js"
     ]
   }
 }

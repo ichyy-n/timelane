@@ -25,7 +25,7 @@ function defaultDate(viewRange, offsetMonths) {
   return `${y}-${String(m).padStart(2, "0")}-01`;
 }
 
-export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, viewRange, allTasks }) {
+export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, onDuplicate, viewRange, allTasks }) {
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -354,6 +354,18 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <div className="modal-actions">
+            {task && onDuplicate && (
+              <button
+                type="button"
+                className="btn-duplicate"
+                onClick={() => {
+                  onDuplicate(task.id, currentProjectId);
+                  onClose();
+                }}
+              >
+                📋 複製
+              </button>
+            )}
             <button type="button" onClick={onClose}>
               キャンセル
             </button>

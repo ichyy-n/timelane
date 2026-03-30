@@ -1,16 +1,38 @@
-# React + Vite
+# Timelane
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Electronベースのガントチャートアプリケーション。プロジェクトのタスクを視覚的に管理できます。
 
-Currently, two official plugins are available:
+## 主な機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- プロジェクト・タスクの階層管理
+- ガントチャート表示（週/月表示切替）
+- ダークモード対応
+- タスクの複製・ドラッグ操作
+- データのJSON保存/読み込み
+- Excel出力
 
-## React Compiler
+## インストール
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+[Releases](https://github.com/ichyy-n/timelane/releases) ページから最新版をダウンロードしてください。
 
-## Expanding the ESLint configuration
+- **macOS**: `.dmg` ファイルをダウンロードしてインストール
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 開発
+
+```bash
+npm install
+npm run dev          # Vite開発サーバー起動
+npm run electron-dev # Electron開発モード（要: npm run dev 同時起動）
+```
+
+## ビルド
+
+```bash
+npm run build:electron  # Vite build + electron-builder
+```
+
+## 技術スタック
+
+- Electron 41
+- React 19 + Vite 8
+- ExcelJS

@@ -144,6 +144,5 @@ export const COLOR_PALETTE = [
   "#FF6384",
 ];
 
-let idCounter = 100;
-export const generateId = () => `task-${String(++idCounter).padStart(3, "0")}`;
-export const generateProjectId = () => `proj-${String(++idCounter).padStart(3, "0")}`;
+export const generateId = () => `task-${crypto.randomUUID().slice(0, 8)}`;
+export const generateProjectId = () => `proj-${crypto.randomUUID().slice(0, 8)}`;
