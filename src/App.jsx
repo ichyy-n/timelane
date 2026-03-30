@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Toolbar from "./components/Toolbar";
 import TaskList from "./components/TaskList";
 import GanttChart from "./components/GanttChart";
 import TaskModal from "./components/TaskModal";
-import { createSampleProjects, generateId, generateProjectId } from "./data/sampleData";
+import { generateId, generateProjectId } from "./data/sampleData";
 import { exportToExcel } from "./utils/exportExcel";
 import "./App.css";
 
@@ -99,32 +99,157 @@ function getDescendantIds(tasks, parentId) {
   return ids;
 }
 
+// A3: Dynamic viewRange initial value
+function computeDefaultViewRange() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  let startMonth = currentMonth - 6;
+  let startYear = currentYear;
+  if (startMonth < 1) { startMonth += 12; startYear -= 1; }
+  let endMonth = currentMonth + 6;
+  let endYear = currentYear;
+  if (endMonth > 12) { endMonth -= 12; endYear += 1; }
+  return { startYear, startMonth, endYear, endMonth };
+}
+
+// A2: History constants
+const MAX_HISTORY = 50;
+
 function App() {
-  const [projects, setProjects] = useState(createSampleProjects);
+  const [projects, setProjects] = useState(() => []);
   const [modalState, setModalState] = useState({ open: false, task: null, projectId: null });
   const [collapsedIds, setCollapsedIds] = useState(new Set());
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
   const [colorMode, setColorMode] = useState(true);
-  const [viewRange, setViewRange] = useState({
-    startYear: 2025,
-    startMonth: 4,
-    endYear: 2026,
-    endMonth: 3,
-  });
+  const [viewRange, setViewRange] = useState(computeDefaultViewRange);
+
+  // A2: Undo/Redo - use refs for history to avoid async state coordination issues
+  const historyRef = useRef({ stack: [], index: -1 });
+  const isUndoRedoRef = useRef(false);
+
+  // B2: Scroll sync refs
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const isSyncingRef = useRef(false);
+
+  // C2: viewMode state
+  const [viewMode, setViewMode] = useState('month');
+
+  // Dark mode state (independent of colorMode)
+  const [darkMode, setDarkMode] = useState(false);
+
+  // C3: Search/filter state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Apply dark mode to document body
+  useEffect(() => {
+    if (darkMode) {
+      document.body.setAttribute('data-theme', 'dark');
+    } else {
+      document.body.removeAttribute('data-theme');
+    }
+  }, [darkMode]);
+
+  // B5: Inline project creation
+  const [addingProject, setAddingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+
+  // A2: Initialize history
+  useEffect(() => {
+    historyRef.current = { stack: [projects], index: 0 };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A2: setProjects wrapper that records history
+  const setProjectsWithHistory = useCallback((updater) => {
+    setProjects((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (!isUndoRedoRef.current) {
+        const h = historyRef.current;
+        const newStack = h.stack.slice(0, h.index + 1);
+        newStack.push(next);
+        if (newStack.length > MAX_HISTORY) newStack.shift();
+        historyRef.current = { stack: newStack, index: newStack.length - 1 };
+      }
+      return next;
+    });
+  }, []);
+
+  // A2: Undo/Redo keyboard handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const h = historyRef.current;
+        if (h.index > 0) {
+          h.index -= 1;
+          isUndoRedoRef.current = true;
+          setProjects(h.stack[h.index]);
+          setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+        }
+      }
+      if (isMod && ((e.key === "z" && e.shiftKey) || (e.key === "y"))) {
+        e.preventDefault();
+        const h = historyRef.current;
+        if (h.index < h.stack.length - 1) {
+          h.index += 1;
+          isUndoRedoRef.current = true;
+          setProjects(h.stack[h.index]);
+          setTimeout(() => { isUndoRedoRef.current = false; }, 0);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // A1: Electron auto-save - load on mount
+  useEffect(() => {
+    window.electronAPI?.loadData().then((data) => {
+      if (data && data.projects) {
+        isUndoRedoRef.current = true;
+        setProjects(data.projects);
+        if (data.viewRange) setViewRange(data.viewRange);
+        if (data.colorMode !== undefined) setColorMode(data.colorMode);
+        if (data.darkMode !== undefined) setDarkMode(data.darkMode);
+        setTimeout(() => {
+          isUndoRedoRef.current = false;
+          historyRef.current = { stack: [data.projects], index: 0 };
+        }, 0);
+      }
+    }).catch(() => { /* not in Electron, ignore */ });
+  }, []);
+
+  // A1: Debounced auto-save on change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.electronAPI?.saveData({ version: "2.0", projects, viewRange, colorMode, darkMode });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [projects, viewRange, colorMode, darkMode]);
+
+  // B2: Scroll sync handler
+  const syncScroll = useCallback((source) => (e) => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    const target = source === "left" ? rightPanelRef.current : leftPanelRef.current;
+    if (target) target.scrollTop = e.currentTarget.scrollTop;
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
+  }, []);
 
   const months = useMemo(
     () => getMonthLabels(viewRange.startYear, viewRange.startMonth, viewRange.endYear, viewRange.endMonth),
     [viewRange]
   );
 
-  // Build display rows: [{type: "project-header", project} | {type: "task", task, projectId}]
+  // Build display rows
   const displayRows = useMemo(() => {
     const rows = [];
     for (const proj of projects) {
       rows.push({ type: "project-header", project: proj });
       if (!collapsedProjects.has(proj.id)) {
         const { ordered, depthMap } = buildTreeOrder(proj.tasks);
-        // Filter out tasks hidden by collapsed parent tasks
         const hidden = new Set();
         for (const id of collapsedIds) {
           const descs = getDescendantIds(proj.tasks, id);
@@ -145,6 +270,52 @@ function App() {
     }
     return rows;
   }, [projects, collapsedProjects, collapsedIds]);
+
+  // C3: Filtered display rows (UX-4: show project header when child tasks match)
+  const filteredDisplayRows = useMemo(() => {
+    if (!searchQuery.trim()) return displayRows;
+    const q = searchQuery.toLowerCase();
+
+    // Step 1: Collect projectIds that have matching tasks
+    const matchedProjectIds = new Set();
+    // Also track which project names match directly
+    const nameMatchedProjectIds = new Set();
+
+    for (const row of displayRows) {
+      if (row.type === 'project-header') {
+        if (row.project.name.toLowerCase().includes(q)) {
+          nameMatchedProjectIds.add(row.project.id);
+        }
+      } else {
+        const t = row.task;
+        if (
+          t.name?.toLowerCase().includes(q) ||
+          t.assignee?.toLowerCase().includes(q) ||
+          t.location?.toLowerCase().includes(q)
+        ) {
+          matchedProjectIds.add(row.projectId);
+        }
+      }
+    }
+
+    // Step 2: Filter rows
+    return displayRows.filter(row => {
+      if (row.type === 'project-header') {
+        const pid = row.project.id;
+        // Show header if project name matches OR any child task matches
+        return nameMatchedProjectIds.has(pid) || matchedProjectIds.has(pid);
+      }
+      // If project name matched, show all tasks under it
+      if (nameMatchedProjectIds.has(row.projectId)) return true;
+      // Otherwise only show matching tasks
+      const t = row.task;
+      return (
+        t.name?.toLowerCase().includes(q) ||
+        t.assignee?.toLowerCase().includes(q) ||
+        t.location?.toLowerCase().includes(q)
+      );
+    });
+  }, [displayRows, searchQuery]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
@@ -178,10 +349,9 @@ function App() {
 
   const handleModalSave = (formData) => {
     const targetProjectId = formData.projectId || modalState.projectId;
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((proj) => {
         if (proj.id !== targetProjectId) {
-          // If editing and task was in a different project, remove it from old project
           if (modalState.task && proj.tasks.some((t) => t.id === modalState.task.id)) {
             return { ...proj, tasks: proj.tasks.filter((t) => t.id !== modalState.task.id) };
           }
@@ -189,7 +359,6 @@ function App() {
         }
         const { projectId: _pid, ...taskData } = formData;
         if (modalState.task) {
-          // Check if task was already in this project
           const existsHere = proj.tasks.some((t) => t.id === modalState.task.id);
           if (existsHere) {
             return {
@@ -199,7 +368,6 @@ function App() {
               ),
             };
           } else {
-            // Moving from another project
             return {
               ...proj,
               tasks: [...proj.tasks, { ...modalState.task, ...taskData }],
@@ -216,18 +384,24 @@ function App() {
   };
 
   const handleDeleteTask = (taskId, projectId) => {
-    setProjects((prev) =>
-      prev.map((proj) => {
-        if (proj.id !== projectId) return proj;
-        const descs = getDescendantIds(proj.tasks, taskId);
+    const proj = projects.find((p) => p.id === projectId);
+    const hasChildren = proj && proj.tasks.some((t) => t.parentId === taskId);
+    const message = hasChildren
+      ? "配下のタスクも全て削除されます。削除しますか？"
+      : "タスクを削除しますか？";
+    if (!window.confirm(message)) return;
+    setProjectsWithHistory((prev) =>
+      prev.map((p) => {
+        if (p.id !== projectId) return p;
+        const descs = getDescendantIds(p.tasks, taskId);
         descs.add(taskId);
-        return { ...proj, tasks: proj.tasks.filter((t) => !descs.has(t.id)) };
+        return { ...p, tasks: p.tasks.filter((t) => !descs.has(t.id)) };
       })
     );
   };
 
   const handleTaskUpdate = useCallback((taskId, updates, projectId) => {
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((proj) => {
         if (proj.id !== projectId) return proj;
         return {
@@ -238,33 +412,136 @@ function App() {
         };
       })
     );
-  }, []);
+  }, [setProjectsWithHistory]);
 
-  const handleAddProject = () => {
-    const name = prompt("Project name:");
-    if (!name) return;
-    setProjects((prev) => [
+  // B5: Inline project creation (replaces prompt())
+  const handleStartAddProject = () => {
+    setAddingProject(true);
+    setNewProjectName("");
+  };
+
+  const handleConfirmAddProject = () => {
+    const name = newProjectName.trim();
+    if (!name) {
+      setAddingProject(false);
+      return;
+    }
+    setProjectsWithHistory((prev) => [
       ...prev,
       { id: generateProjectId(), name, collapsed: false, tasks: [] },
     ]);
+    setAddingProject(false);
+    setNewProjectName("");
+  };
+
+  const handleCancelAddProject = () => {
+    setAddingProject(false);
+    setNewProjectName("");
   };
 
   const handleDeleteProject = (projectId) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    const project = projects.find((p) => p.id === projectId);
+    const name = project ? project.name : "";
+    if (!window.confirm(`プロジェクト「${name}」を削除しますか？`)) return;
+    setProjectsWithHistory((prev) => prev.filter((p) => p.id !== projectId));
   };
 
   const handleProjectNameChange = (projectId, name) => {
-    setProjects((prev) =>
+    setProjectsWithHistory((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, name } : p))
     );
   };
+
+  // B3: Task reorder (drag & drop)
+  const handleReorderTask = useCallback((draggedItem, targetItem) => {
+    if (draggedItem.projectId !== targetItem.projectId) return;
+    setProjectsWithHistory((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== draggedItem.projectId) return proj;
+        const tasks = [...proj.tasks];
+        const fromIdx = tasks.findIndex((t) => t.id === draggedItem.taskId);
+        const toIdx = tasks.findIndex((t) => t.id === targetItem.taskId);
+        if (fromIdx === -1 || toIdx === -1) return proj;
+        const [moved] = tasks.splice(fromIdx, 1);
+        tasks.splice(toIdx, 0, moved);
+        return { ...proj, tasks };
+      })
+    );
+  }, [setProjectsWithHistory]);
 
   const handleExportExcel = useCallback(() => {
     exportToExcel(projects, viewRange);
   }, [projects, viewRange]);
 
+  // FN-1: Task duplication
+  const handleDuplicateTask = useCallback((taskId, projectId) => {
+    setProjectsWithHistory((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== projectId) return proj;
+        const tasks = [...proj.tasks];
+        const idx = tasks.findIndex((t) => t.id === taskId);
+        if (idx === -1) return proj;
+        const original = tasks[idx];
+
+        // Check if it's a group task with children
+        const childTasks = tasks.filter((t) => t.parentId === taskId);
+        const newParentId = crypto.randomUUID();
+        const duplicated = {
+          ...original,
+          id: newParentId,
+          name: `${original.name}(コピー)`,
+        };
+
+        if (childTasks.length === 0) {
+          // Simple task: insert right after original
+          tasks.splice(idx + 1, 0, duplicated);
+        } else {
+          // Group task: duplicate parent + all children with new IDs
+          const idMap = new Map();
+          idMap.set(taskId, newParentId);
+
+          // Build new children recursively
+          const newChildren = [];
+          const buildChildren = (oldParentId) => {
+            const kids = tasks.filter((t) => t.parentId === oldParentId);
+            for (const kid of kids) {
+              const newKidId = crypto.randomUUID();
+              idMap.set(kid.id, newKidId);
+              newChildren.push({
+                ...kid,
+                id: newKidId,
+                name: kid.name,
+                parentId: idMap.get(oldParentId),
+              });
+              buildChildren(kid.id);
+            }
+          };
+          buildChildren(taskId);
+
+          // Find the last descendant index to insert after the whole group
+          const descIds = getDescendantIds(tasks, taskId);
+          let lastIdx = idx;
+          tasks.forEach((t, i) => {
+            if (descIds.has(t.id) && i > lastIdx) lastIdx = i;
+          });
+
+          tasks.splice(lastIdx + 1, 0, duplicated, ...newChildren);
+        }
+
+        return { ...proj, tasks };
+      })
+    );
+  }, [setProjectsWithHistory]);
+
+  const handleClearAll = useCallback(() => {
+    if (!window.confirm("全データをクリアしますか？")) return;
+    setProjectsWithHistory([]);
+    setCollapsedIds(new Set());
+    setCollapsedProjects(new Set());
+  }, [setProjectsWithHistory]);
+
   const handleSave = () => {
-    const data = { version: "2.0", projects, viewRange, colorMode };
+    const data = { version: "2.0", projects, viewRange, colorMode, darkMode };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
@@ -285,18 +562,17 @@ function App() {
         const data = JSON.parse(event.target.result);
         if (data.version === "2.0" && data.projects) {
           const vr = data.viewRange || viewRange;
-          // Convert legacy startMonth/endMonth tasks to startDate/endDate
           const convertedProjects = data.projects.map((proj) => ({
             ...proj,
             tasks: proj.tasks.map((t) => convertLegacyTask(t, vr)),
           }));
-          setProjects(convertedProjects);
+          setProjectsWithHistory(convertedProjects);
           if (data.viewRange) setViewRange(data.viewRange);
           if (data.colorMode !== undefined) setColorMode(data.colorMode);
+          if (data.darkMode !== undefined) setDarkMode(data.darkMode);
         } else if (data.version && data.project && data.tasks) {
-          // Legacy v1 format: convert to multi-project
           const vr = data.viewRange || viewRange;
-          setProjects([
+          setProjectsWithHistory([
             {
               id: generateProjectId(),
               name: data.project.name || "Imported Project",
@@ -325,7 +601,7 @@ function App() {
     <div className="app">
       <Toolbar
         onAddTask={() => handleAddTask(null)}
-        onAddProject={handleAddProject}
+        onAddProject={handleStartAddProject}
         onSave={handleSave}
         onLoad={handleLoad}
         onExportExcel={handleExportExcel}
@@ -333,11 +609,35 @@ function App() {
         onViewRangeChange={setViewRange}
         colorMode={colorMode}
         onColorModeChange={setColorMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        darkMode={darkMode}
+        onDarkModeChange={setDarkMode}
+        onClearAll={handleClearAll}
       />
+      {/* B5: Inline project name input */}
+      {addingProject && (
+        <div className="inline-project-input">
+          <input
+            type="text"
+            placeholder="Project name..."
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleConfirmAddProject();
+              if (e.key === "Escape") handleCancelAddProject();
+            }}
+            onBlur={handleCancelAddProject}
+            autoFocus
+          />
+        </div>
+      )}
       <div className="main-content">
-        <div className="left-panel">
+        <div className="left-panel" ref={leftPanelRef} onScroll={syncScroll("left")}>
           <TaskList
-            displayRows={displayRows}
+            displayRows={filteredDisplayRows}
             collapsedIds={collapsedIds}
             collapsedProjects={collapsedProjects}
             onToggleCollapse={toggleCollapse}
@@ -346,25 +646,29 @@ function App() {
             onDelete={handleDeleteTask}
             onDeleteProject={handleDeleteProject}
             onProjectNameChange={handleProjectNameChange}
+            onReorder={handleReorderTask}
             colorMode={colorMode}
           />
         </div>
-        <div className="right-panel">
+        <div className="right-panel" ref={rightPanelRef} onScroll={syncScroll("right")}>
           <GanttChart
-            displayRows={displayRows}
+            displayRows={filteredDisplayRows}
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}
             colorMode={colorMode}
+            darkMode={darkMode}
             viewRange={viewRange}
+            viewMode={viewMode}
+            tasks={allTasksFlat}
           />
         </div>
       </div>
       <div className="status-bar">
-        Period: {months[0]} - {months[months.length - 1]} | Projects:{" "}
-        {projects.length} | Tasks:{" "}
+        期間: {months[0]} - {months[months.length - 1]} | プロジェクト:{" "}
+        {projects.length} | タスク:{" "}
         {projects.reduce((sum, p) => sum + p.tasks.filter((t) => t.type !== "milestone").length, 0)} |
-        Milestones:{" "}
+        マイルストーン:{" "}
         {projects.reduce((sum, p) => sum + p.tasks.filter((t) => t.type === "milestone").length, 0)}
       </div>
 
@@ -375,7 +679,9 @@ function App() {
           currentProjectId={modalState.projectId}
           onSave={handleModalSave}
           onClose={handleModalClose}
+          onDuplicate={handleDuplicateTask}
           viewRange={viewRange}
+          allTasks={allTasksFlat}
         />
       )}
     </div>

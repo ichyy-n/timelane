@@ -25,7 +25,7 @@ function defaultDate(viewRange, offsetMonths) {
   return `${y}-${String(m).padStart(2, "0")}-01`;
 }
 
-export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, viewRange }) {
+export default function TaskModal({ task, projects, currentProjectId, onSave, onClose, onDuplicate, viewRange, allTasks }) {
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -36,6 +36,8 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     type: "task",
     parentId: null,
     notes: "",
+    progress: 0,
+    dependencies: [],
     projectId: currentProjectId || projects[0]?.id,
     dates: [{ date: defaultDate(viewRange, 0), label: "" }],
   });
@@ -52,6 +54,8 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         type: task.type || "task",
         parentId: task.parentId || null,
         notes: task.notes || "",
+        progress: task.progress || 0,
+        dependencies: task.dependencies || [],
         projectId: currentProjectId || projects[0]?.id,
         dates: task.dates && task.dates.length > 0
           ? task.dates.map((d) => ({ date: d.date || "", label: d.label || "" }))
@@ -72,6 +76,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
       startDate: form.startDate || null,
       endDate: form.type === "milestone" ? (form.startDate || null) : (form.endDate || null),
       parentId: form.parentId || null,
+      progress: form.type === "milestone" ? undefined : (form.progress || 0),
     };
     if (form.type === "milestone") {
       const validDates = form.dates ? form.dates.filter((d) => d.date) : [];
@@ -83,6 +88,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         data.startDate = null;
         data.endDate = null;
       }
+      delete data.progress;
     } else {
       delete data.dates;
     }
@@ -101,10 +107,10 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>{task ? "Edit Task" : "Add Task"}</h3>
+        <h3>{task ? "タスク編集" : "タスク追加"}</h3>
         <form onSubmit={handleSubmit}>
           <label>
-            Project *
+            プロジェクト *
             <select
               value={form.projectId}
               onChange={(e) => {
@@ -121,7 +127,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <label>
-            Type
+            タイプ
             <div className="radio-group">
               <label className="radio-label">
                 <input
@@ -131,7 +137,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   checked={form.type === "task"}
                   onChange={() => handleChange("type", "task")}
                 />
-                Task
+                タスク
               </label>
               <label className="radio-label">
                 <input
@@ -141,13 +147,13 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   checked={form.type === "milestone"}
                   onChange={() => handleChange("type", "milestone")}
                 />
-                Milestone
+                マイルストーン
               </label>
             </div>
           </label>
 
           <label>
-            Task Name *
+            タスク名 *
             <input
               type="text"
               value={form.name}
@@ -158,12 +164,12 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <label>
-            Parent Task
+            親タスク
             <select
               value={form.parentId || ""}
               onChange={(e) => handleChange("parentId", e.target.value || null)}
             >
-              <option value="">None (Root)</option>
+              <option value="">なし（ルート）</option>
               {parentOptions.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -174,7 +180,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
 
           {form.type === "milestone" ? (
             <div className="milestone-dates-section">
-              <label>Milestone Dates</label>
+              <label>マイルストーン日付</label>
               {form.dates.map((d, idx) => (
                 <div key={idx} className="milestone-date-row">
                   <input
@@ -188,7 +194,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   />
                   <input
                     type="text"
-                    placeholder="Label"
+                    placeholder="ラベル"
                     value={d.label}
                     onChange={(e) => {
                       const newDates = [...form.dates];
@@ -216,58 +222,97 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   handleChange("dates", [...form.dates, { date: defaultDate(viewRange, 0), label: "" }]);
                 }}
               >
-                + Add Date
+                + 日付追加
               </button>
             </div>
           ) : (
-            <div className="form-row">
+            <>
+              <div className="form-row">
+                <label>
+                  開始日
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="date"
+                      value={form.startDate || ""}
+                      onChange={(e) => handleChange("startDate", e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    {form.startDate && (
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => handleChange("startDate", "")}
+                        title="開始日をクリア"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  終了日
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="date"
+                      value={form.endDate || ""}
+                      onChange={(e) => handleChange("endDate", e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    {form.endDate && (
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => handleChange("endDate", "")}
+                        title="終了日をクリア"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              {/* B4: Progress field */}
               <label>
-                Start
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    type="date"
-                    value={form.startDate || ""}
-                    onChange={(e) => handleChange("startDate", e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.startDate && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => handleChange("startDate", "")}
-                      title="Clear start date"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                進捗: {form.progress}%
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={form.progress}
+                  onChange={(e) => handleChange("progress", Number(e.target.value))}
+                />
               </label>
-              <label>
-                End
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    type="date"
-                    value={form.endDate || ""}
-                    onChange={(e) => handleChange("endDate", e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.endDate && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => handleChange("endDate", "")}
-                      title="Clear end date"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </label>
-            </div>
+            </>
+          )}
+
+          {/* C1: 依存先タスク選択（milestoneには表示しない） */}
+          {form.type !== 'milestone' && (
+            <label>
+              依存先タスク（完了後に開始）
+              <select
+                multiple
+                value={form.dependencies || []}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                  handleChange("dependencies", selected);
+                }}
+                style={{ minHeight: 80 }}
+              >
+                {(allTasks || [])
+                  .filter(t => t.id !== (task?.id) && t.type !== 'milestone')
+                  .map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))
+                }
+              </select>
+              <small>Ctrl+クリックで複数選択</small>
+            </label>
           )}
 
           <label>
-            Assignee
+            担当者
             <input
               type="text"
               value={form.assignee}
@@ -276,7 +321,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <label>
-            Location
+            場所
             <input
               type="text"
               value={form.location}
@@ -285,7 +330,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <label>
-            Color
+            バーの色
             <div className="color-picker">
               {COLOR_PALETTE.map((c) => (
                 <button
@@ -300,7 +345,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <label>
-            Notes
+            備考
             <textarea
               value={form.notes}
               onChange={(e) => handleChange("notes", e.target.value)}
@@ -309,11 +354,23 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           </label>
 
           <div className="modal-actions">
+            {task && onDuplicate && (
+              <button
+                type="button"
+                className="btn-duplicate"
+                onClick={() => {
+                  onDuplicate(task.id, currentProjectId);
+                  onClose();
+                }}
+              >
+                📋 複製
+              </button>
+            )}
             <button type="button" onClick={onClose}>
-              Cancel
+              キャンセル
             </button>
             <button type="submit" className="btn-primary">
-              Save
+              保存
             </button>
           </div>
         </form>
