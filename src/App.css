@@ -178,20 +178,44 @@ body {
   color: var(--text-primary);
 }
 
-/* View mode toggle button */
-.view-mode-btn {
+/* Today button - Notion-style subtle text button */
+.btn-today {
   background: transparent;
   color: var(--text-secondary);
   border: none;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 400;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-today:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* View mode select */
+.view-mode-select {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  appearance: auto;
   transition: background 0.15s;
 }
 
-.view-mode-btn:hover {
+.view-mode-select:hover {
   background: var(--bg-hover);
+}
+
+.view-mode-select:focus {
+  border-color: var(--border);
+  outline: none;
 }
 
 /* Main layout */
@@ -889,6 +913,25 @@ body {
 .hamburger-menu button:hover,
 .hamburger-menu .hamburger-menu-load:hover {
   background: var(--bg-hover);
+}
+
+.hamburger-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.hamburger-menu-label {
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hamburger-menu button.sort-active {
+  color: var(--accent);
 }
 
 /* Print styles - show only gantt chart area */

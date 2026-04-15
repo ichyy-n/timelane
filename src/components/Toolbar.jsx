@@ -16,6 +16,9 @@ export default function Toolbar({
   darkMode,
   onDarkModeChange,
   onClearAll,
+  onScrollToToday,
+  sortMode,
+  onSortModeChange,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -83,12 +86,16 @@ export default function Toolbar({
         </select>
       </div>
       <button className="btn-add-task" onClick={onAddTask}>+ タスク追加</button>
-      <button
-        className="view-mode-btn"
-        onClick={() => onViewModeChange(viewMode === 'month' ? 'week' : 'month')}
+      <button className="btn-today" onClick={onScrollToToday}>今日</button>
+      <select
+        className="view-mode-select"
+        value={viewMode}
+        onChange={(e) => onViewModeChange(e.target.value)}
       >
-        {viewMode === 'month' ? '週表示' : '月表示'}
-      </button>
+        <option value="week">週</option>
+        <option value="month">月</option>
+        <option value="quarter">四半期</option>
+      </select>
       <div className="hamburger-wrapper" ref={menuRef}>
         <button
           className="hamburger-btn"
@@ -106,6 +113,23 @@ export default function Toolbar({
             <button onClick={() => handleMenuAction(() => onDarkModeChange(!darkMode))}>
               {darkMode ? "☀️ ライトモードに切替" : "🌙 ダークモードに切替"}
             </button>
+            <div className="hamburger-menu-divider" />
+            <div className="hamburger-menu-label">並び替え</div>
+            {[
+              { value: "manual", label: "手動" },
+              { value: "startDate", label: "開始日順" },
+              { value: "name", label: "名前順" },
+              { value: "assignee", label: "担当者順" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleMenuAction(() => onSortModeChange(opt.value))}
+                className={sortMode === opt.value ? "sort-active" : ""}
+              >
+                {sortMode === opt.value ? "✓ " : "　"}{opt.label}
+              </button>
+            ))}
+            <div className="hamburger-menu-divider" />
             <button onClick={() => handleMenuAction(onExportExcel)}>Excel出力</button>
             <button onClick={() => handleMenuAction(onPrintPdf)}>PDF出力</button>
             <button onClick={() => handleMenuAction(onSave)}>JSON保存</button>

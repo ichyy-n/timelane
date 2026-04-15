@@ -74,6 +74,62 @@ function dateToPixelWeek(dateStr, weeks) {
   return (daysDiff / 7) * CELL_WIDTH;
 }
 
+// C3: Generate quarter labels from viewRange
+function getQuarterLabels(viewRange) {
+  const quarters = [];
+  let y = viewRange.startYear;
+  let m = viewRange.startMonth;
+  // Align to quarter start
+  const qStart = Math.ceil(m / 3);
+  let q = qStart;
+  while (y < viewRange.endYear || (y === viewRange.endYear && (q - 1) * 3 + 1 <= viewRange.endMonth)) {
+    quarters.push({
+      label: `Q${q} ${y}`,
+      year: y,
+      quarter: q,
+      startDate: `${y}-${String((q - 1) * 3 + 1).padStart(2, "0")}-01`,
+    });
+    q++;
+    if (q > 4) { q = 1; y++; }
+  }
+  return quarters;
+}
+
+// C3: Convert a date string to pixel position (quarter view)
+const QUARTER_CELL_WIDTH = 80;
+function dateToPixelQuarter(dateStr, quarters) {
+  if (quarters.length === 0) return 0;
+  const date = new Date(dateStr + "T00:00:00");
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const q = Math.ceil(month / 3);
+  const qStartMonth = (q - 1) * 3 + 1;
+  // Days in this quarter
+  let totalDays = 0;
+  for (let mi = qStartMonth; mi < qStartMonth + 3; mi++) {
+    totalDays += new Date(year, mi, 0).getDate();
+  }
+  // Days elapsed in this quarter
+  let daysElapsed = 0;
+  for (let mi = qStartMonth; mi < month; mi++) {
+    daysElapsed += new Date(year, mi, 0).getDate();
+  }
+  daysElapsed += day - 1;
+  const ratio = daysElapsed / totalDays;
+
+  // Find quarter index
+  const qIdx = quarters.findIndex((qi) => qi.year === year && qi.quarter === q);
+  if (qIdx >= 0) {
+    return (qIdx + ratio) * QUARTER_CELL_WIDTH;
+  }
+  // Extrapolate
+  const firstQ = quarters[0];
+  const firstQNum = (firstQ.year * 4) + firstQ.quarter;
+  const thisQNum = (year * 4) + q;
+  return ((thisQNum - firstQNum) + ratio) * QUARTER_CELL_WIDTH;
+}
+
 // Add days to a date string, return YYYY-MM-DD
 function addDays(dateStr, days) {
   const d = new Date(dateStr + "T00:00:00");
@@ -116,7 +172,7 @@ export default function GanttChart({
   scrollRef,
   onScroll,
   tasks = [],          // C1: flat list of all tasks (for dependency arrows)
-  viewMode = "month",  // C2: 'month' | 'week'
+  viewMode = "month",  // C2: 'month' | 'week' | 'quarter'
 }) {
   const chartRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -127,14 +183,28 @@ export default function GanttChart({
     return getWeekLabels(viewRange);
   }, [viewMode, viewRange]);
 
-  // Determine header labels and column count based on viewMode
-  const headerLabels = viewMode === "week" ? weekLabels.map((w) => w.label) : months;
-  const columnCount = headerLabels.length;
+  // C3: Quarter labels for quarter view
+  const quarterLabels = useMemo(() => {
+    if (viewMode !== "quarter") return [];
+    return getQuarterLabels(viewRange);
+  }, [viewMode, viewRange]);
 
-  // C2: Pixel conversion function based on viewMode
+  // Determine header labels and column count based on viewMode
+  const headerLabels = viewMode === "week"
+    ? weekLabels.map((w) => w.label)
+    : viewMode === "quarter"
+      ? quarterLabels.map((q) => q.label)
+      : months;
+  const columnCount = headerLabels.length;
+  const cellWidth = viewMode === "quarter" ? QUARTER_CELL_WIDTH : CELL_WIDTH;
+
+  // C2/C3: Pixel conversion function based on viewMode
   const toPixel = (dateStr, isEnd) => {
     if (viewMode === "week") {
       return dateToPixelWeek(dateStr, weekLabels);
+    }
+    if (viewMode === "quarter") {
+      return dateToPixelQuarter(dateStr, quarterLabels);
     }
     return dateToPixel(dateStr, viewRange, isEnd);
   };
@@ -184,8 +254,9 @@ export default function GanttChart({
 
     const handleMouseMove = (moveEvent) => {
       const dx = moveEvent.clientX - startX;
-      // Approximate: 1 month cell = ~30 days
-      const dayDelta = Math.round((dx / CELL_WIDTH) * 30);
+      // Approximate days per cell based on viewMode
+      const daysPerCell = viewMode === "quarter" ? 91 : viewMode === "week" ? 7 : 30;
+      const dayDelta = Math.round((dx / cellWidth) * daysPerCell);
       if (dayDelta === 0) return;
 
       let newStart = origStartDate;
@@ -218,10 +289,10 @@ export default function GanttChart({
   // Boundary positions for dashed vertical lines
   const monthBoundaries = useMemo(() => {
     const boundaries = [];
-    if (viewMode === "week") {
-      // Week view: draw lines at each week cell boundary
+    if (viewMode === "week" || viewMode === "quarter") {
+      // Week/Quarter view: draw lines at each cell boundary
       for (let i = 1; i < columnCount; i++) {
-        const x = i * CELL_WIDTH;
+        const x = i * cellWidth;
         boundaries.push({ x, label: headerLabels[i] || "" });
       }
     } else {
@@ -236,18 +307,18 @@ export default function GanttChart({
         if (y > endYear || (y === endYear && m > endMonth)) break;
         const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
         const x = toPixel(dateStr, false);
-        if (x > 0 && x < columnCount * CELL_WIDTH) {
+        if (x > 0 && x < columnCount * cellWidth) {
           boundaries.push({ x, label: `${y}-${String(m).padStart(2, "0")}` });
         }
       }
     }
     return boundaries;
-  }, [viewRange, viewMode, weekLabels, columnCount]);
+  }, [viewRange, viewMode, weekLabels, quarterLabels, columnCount, cellWidth]);
 
   // B1: Today line position
   const todayStr = new Date().toISOString().split('T')[0];
   const todayPixel = toPixel(todayStr, false);
-  const totalWidth = columnCount * CELL_WIDTH;
+  const totalWidth = columnCount * cellWidth;
   const showTodayLine = todayPixel >= 0 && todayPixel <= totalWidth;
 
   const todayLineStyle = {
@@ -264,12 +335,12 @@ export default function GanttChart({
   return (
     <div className="gantt-chart" ref={chartRef}>
       {/* Headers (month or week) */}
-      <div className="gantt-header" style={{ width: columnCount * CELL_WIDTH + NOTES_WIDTH, position: 'relative' }}>
+      <div className="gantt-header" style={{ width: columnCount * cellWidth + NOTES_WIDTH, position: 'relative' }}>
         {headerLabels.map((label, i) => (
           <div
             key={i}
             className="gantt-header-cell"
-            style={{ width: CELL_WIDTH }}
+            style={{ width: cellWidth }}
           >
             {label}
           </div>
@@ -297,7 +368,7 @@ export default function GanttChart({
       {/* Rows */}
       <div
         className="gantt-body"
-        style={{ width: columnCount * CELL_WIDTH + NOTES_WIDTH, height: displayRows.length * ROW_HEIGHT, position: 'relative' }}
+        style={{ width: columnCount * cellWidth + NOTES_WIDTH, height: displayRows.length * ROW_HEIGHT, position: 'relative' }}
         ref={scrollRef}
         onScroll={onScroll}
       >
@@ -307,7 +378,7 @@ export default function GanttChart({
             <div
               key={i}
               className="gantt-grid-col"
-              style={{ left: i * CELL_WIDTH, width: CELL_WIDTH }}
+              style={{ left: i * cellWidth, width: cellWidth }}
             />
           ))}
         </div>
@@ -353,7 +424,7 @@ export default function GanttChart({
                 className="gantt-row gantt-project-header-row"
                 style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
-                <div className="gantt-notes-cell" style={{ left: columnCount * CELL_WIDTH, width: NOTES_WIDTH }} />
+                <div className="gantt-notes-cell" style={{ left: columnCount * cellWidth, width: NOTES_WIDTH }} />
               </div>
             );
           }
@@ -362,7 +433,7 @@ export default function GanttChart({
           const projectId = row.projectId;
           const isMilestone = task.type === "milestone";
           const notesCell = (
-            <div className="gantt-notes-cell" style={{ left: columnCount * CELL_WIDTH, width: NOTES_WIDTH }} title={task.notes || ""}>
+            <div className="gantt-notes-cell" style={{ left: columnCount * cellWidth, width: NOTES_WIDTH }} title={task.notes || ""}>
               {task.notes || ""}
             </div>
           );

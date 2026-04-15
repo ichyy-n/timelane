@@ -133,6 +133,9 @@ function App() {
   // C2: viewMode state
   const [viewMode, setViewMode] = useState('month');
 
+  // Sort mode state
+  const [sortMode, setSortMode] = useState('manual');
+
   // Dark mode state (independent of colorMode)
   const [darkMode, setDarkMode] = useState(false);
 
@@ -233,6 +236,48 @@ function App() {
     requestAnimationFrame(() => { isSyncingRef.current = false; });
   }, []);
 
+  // Scroll to today's position in the right panel
+  const handleScrollToToday = useCallback(() => {
+    if (!rightPanelRef.current) return;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const CELL_WIDTH = 80;
+
+    let px;
+    if (viewMode === 'week') {
+      // Approximate week-based position
+      const startDate = new Date(viewRange.startYear, viewRange.startMonth - 1, 1);
+      const daysDiff = (today - startDate) / (1000 * 60 * 60 * 24);
+      px = (daysDiff / 7) * CELL_WIDTH;
+    } else if (viewMode === 'quarter') {
+      const startQ = Math.ceil(viewRange.startMonth / 3);
+      const startQNum = viewRange.startYear * 4 + startQ;
+      const todayQ = Math.ceil((today.getMonth() + 1) / 3);
+      const todayQNum = today.getFullYear() * 4 + todayQ;
+      const qStartMonth = (todayQ - 1) * 3 + 1;
+      let totalDays = 0;
+      for (let mi = qStartMonth; mi < qStartMonth + 3; mi++) {
+        totalDays += new Date(today.getFullYear(), mi, 0).getDate();
+      }
+      let daysElapsed = 0;
+      for (let mi = qStartMonth; mi < today.getMonth() + 1; mi++) {
+        daysElapsed += new Date(today.getFullYear(), mi, 0).getDate();
+      }
+      daysElapsed += today.getDate() - 1;
+      const ratio = daysElapsed / totalDays;
+      px = ((todayQNum - startQNum) + ratio) * CELL_WIDTH;
+    } else {
+      // Month view
+      const monthIdx = (today.getFullYear() - viewRange.startYear) * 12 + (today.getMonth() + 1 - viewRange.startMonth);
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const ratio = (today.getDate() - 1) / daysInMonth;
+      px = (monthIdx + ratio) * CELL_WIDTH;
+    }
+
+    const panelWidth = rightPanelRef.current.clientWidth;
+    rightPanelRef.current.scrollTo({ left: px - panelWidth / 2, behavior: 'smooth' });
+  }, [viewMode, viewRange]);
+
   const months = useMemo(
     () => getMonthLabels(viewRange.startYear, viewRange.startMonth, viewRange.endYear, viewRange.endMonth),
     [viewRange]
@@ -244,10 +289,30 @@ function App() {
     for (const proj of projects) {
       rows.push({ type: "project-header", project: proj });
       if (!collapsedProjects.has(proj.id)) {
-        const { ordered, depthMap } = buildTreeOrder(proj.tasks);
+        let tasksToShow;
+        if (sortMode !== 'manual') {
+          // Sort tasks within this project (flat sort, preserving tree structure for manual)
+          const sorted = [...proj.tasks].sort((a, b) => {
+            if (sortMode === 'startDate') {
+              return (a.startDate || '').localeCompare(b.startDate || '');
+            }
+            if (sortMode === 'name') {
+              return (a.name || '').localeCompare(b.name || '');
+            }
+            if (sortMode === 'assignee') {
+              return (a.assignee || '').localeCompare(b.assignee || '');
+            }
+            return 0;
+          });
+          tasksToShow = sorted;
+        } else {
+          tasksToShow = proj.tasks;
+        }
+
+        const { ordered, depthMap } = buildTreeOrder(tasksToShow);
         const hidden = new Set();
         for (const id of collapsedIds) {
-          const descs = getDescendantIds(proj.tasks, id);
+          const descs = getDescendantIds(tasksToShow, id);
           descs.forEach((d) => hidden.add(d));
         }
         for (const task of ordered) {
@@ -257,14 +322,14 @@ function App() {
               task,
               projectId: proj.id,
               depth: depthMap.get(task.id) || 0,
-              hasChildren: proj.tasks.some((t) => t.parentId === task.id),
+              hasChildren: tasksToShow.some((t) => t.parentId === task.id),
             });
           }
         }
       }
     }
     return rows;
-  }, [projects, collapsedProjects, collapsedIds]);
+  }, [projects, collapsedProjects, collapsedIds, sortMode]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
@@ -568,6 +633,9 @@ function App() {
         darkMode={darkMode}
         onDarkModeChange={setDarkMode}
         onClearAll={handleClearAll}
+        onScrollToToday={handleScrollToToday}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
       />
       {/* B5: Inline project name input */}
       {addingProject && (
