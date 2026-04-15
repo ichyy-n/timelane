@@ -2,34 +2,34 @@
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #ffffff;
-  --bg-surface: #f7f6f3;
-  --bg-hover: #f1f1ef;
+  --bg-surface: #efeeeb;
+  --bg-hover: #ebebea;
   --text-primary: #37352f;
   --text-secondary: #787774;
   --text-muted: #b4b0a8;
-  --border: #e9e9e7;
+  --border: #e3e2e0;
   --accent: #2eaadc;
   --accent-hover: #2496c4;
   --danger: #eb5757;
-  --project-header-bg: transparent;
-  --project-header-hover: rgba(55, 53, 47, 0.04);
+  --project-header-bg: rgba(55, 53, 47, 0.06);
+  --project-header-hover: rgba(55, 53, 47, 0.08);
 }
 
 /* Dark theme overrides - Notion dark mode */
 [data-theme="dark"] {
   --bg-primary: #191919;
   --bg-secondary: #202020;
-  --bg-surface: #2f2f2f;
-  --bg-hover: #363636;
+  --bg-surface: #333333;
+  --bg-hover: #3a3a3a;
   --text-primary: #e3e2df;
   --text-secondary: #9b9a97;
   --text-muted: #5a5a58;
-  --border: #373737;
+  --border: #404040;
   --accent: #529cca;
   --accent-hover: #468bb5;
   --danger: #eb5757;
-  --project-header-bg: transparent;
-  --project-header-hover: rgba(255, 255, 255, 0.04);
+  --project-header-bg: rgba(255, 255, 255, 0.06);
+  --project-header-hover: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -220,7 +220,7 @@ body {
 .task-list-header {
   display: flex;
   padding: 8px 14px;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   font-weight: 500;
@@ -237,7 +237,7 @@ body {
 .task-list-row {
   display: flex;
   padding: 4px 14px;
-  border-bottom: 1px solid rgba(233, 233, 231, 0.4);
+  border-bottom: 1px solid rgba(233, 233, 231, 0.6);
   cursor: pointer;
   align-items: center;
   height: 32px;
@@ -245,7 +245,7 @@ body {
 }
 
 [data-theme="dark"] .task-list-row {
-  border-bottom: 1px solid rgba(55, 55, 55, 0.4);
+  border-bottom: 1px solid rgba(55, 55, 55, 0.6);
 }
 
 .task-list-row:hover {
@@ -427,7 +427,7 @@ body {
   text-align: center;
   font-size: 11px;
   color: var(--text-muted);
-  border-right: 1px solid rgba(233, 233, 231, 0.5);
+  border-right: 1px solid rgba(233, 233, 231, 0.7);
   flex-shrink: 0;
   height: 32px;
   display: flex;
@@ -437,7 +437,7 @@ body {
 }
 
 [data-theme="dark"] .gantt-header-cell {
-  border-right: 1px solid rgba(55, 55, 55, 0.5);
+  border-right: 1px solid rgba(55, 55, 55, 0.7);
 }
 
 .gantt-body {
@@ -457,11 +457,11 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-right: 1px dashed rgba(233, 233, 231, 0.6);
+  border-right: 1px dashed rgba(233, 233, 231, 0.8);
 }
 
 [data-theme="dark"] .gantt-grid-col {
-  border-right: 1px dashed rgba(55, 55, 55, 0.6);
+  border-right: 1px dashed rgba(55, 55, 55, 0.8);
 }
 
 .gantt-grid-col:nth-child(even) {
@@ -473,11 +473,11 @@ body {
   left: 0;
   right: 0;
   height: 32px;
-  border-bottom: 1px solid rgba(233, 233, 231, 0.3);
+  border-bottom: 1px solid rgba(233, 233, 231, 0.5);
 }
 
 [data-theme="dark"] .gantt-row {
-  border-bottom: 1px solid rgba(55, 55, 55, 0.3);
+  border-bottom: 1px solid rgba(55, 55, 55, 0.5);
 }
 
 /* Project header row in gantt */

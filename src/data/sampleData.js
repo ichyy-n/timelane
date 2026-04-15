@@ -14,7 +14,7 @@ export const createSampleProjects = () => [
         assignee: "Person 1",
         startDate: "2025-04-10",
         endDate: "2025-09-20",
-        color: "#4472C4",
+        color: "#d3e5ef",
         notes: "",
       },
       {
@@ -26,7 +26,7 @@ export const createSampleProjects = () => [
         assignee: "Person 1",
         startDate: "2025-04-05",
         endDate: "2025-05-25",
-        color: "#4472C4",
+        color: "#d3e5ef",
         notes: "",
       },
       {
@@ -38,7 +38,7 @@ export const createSampleProjects = () => [
         assignee: "Person 2",
         startDate: "2025-06-10",
         endDate: "2025-08-20",
-        color: "#ED7D31",
+        color: "#fadec9",
         notes: "",
       },
       {
@@ -50,7 +50,7 @@ export const createSampleProjects = () => [
         assignee: "Person 3",
         startDate: "2025-08-15",
         endDate: "2025-09-18",
-        color: "#FFC000",
+        color: "#fdecc8",
         notes: "",
       },
       {
@@ -86,7 +86,7 @@ export const createSampleProjects = () => [
         assignee: "Person 4",
         startDate: "2025-07-05",
         endDate: "2026-01-25",
-        color: "#70AD47",
+        color: "#dbeddb",
         notes: "",
       },
       {
@@ -98,7 +98,7 @@ export const createSampleProjects = () => [
         assignee: "Person 4",
         startDate: "2025-07-10",
         endDate: "2025-09-15",
-        color: "#70AD47",
+        color: "#dbeddb",
         notes: "",
       },
       {
@@ -110,7 +110,7 @@ export const createSampleProjects = () => [
         assignee: "Person 5",
         startDate: "2025-09-08",
         endDate: "2026-01-20",
-        color: "#5B9BD5",
+        color: "#e8deee",
         notes: "",
       },
       {
@@ -136,12 +136,14 @@ export const createSampleProjects = () => [
 ];
 
 export const COLOR_PALETTE = [
-  "#4472C4",
-  "#ED7D31",
-  "#70AD47",
-  "#FFC000",
-  "#5B9BD5",
-  "#FF6384",
+  "#d3e5ef",
+  "#dbeddb",
+  "#f5e0e9",
+  "#fadec9",
+  "#e8deee",
+  "#fdecc8",
+  "#ffe2dd",
+  "#e3e2e0",
 ];
 
 export const generateId = () => `task-${crypto.randomUUID().slice(0, 8)}`;
