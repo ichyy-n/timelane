@@ -416,6 +416,19 @@ export default function GanttChart({
         {showTodayLine && <div style={todayLineStyle} />}
 
         {displayRows.map((row, rowIndex) => {
+          // Group header row
+          if (row.type === "group-header") {
+            return (
+              <div
+                key={`group-${row.groupKey}`}
+                className="gantt-row gantt-group-header-row"
+                style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
+              >
+                <div className="gantt-notes-cell" style={{ left: columnCount * cellWidth, width: NOTES_WIDTH }} />
+              </div>
+            );
+          }
+
           // Project header row
           if (row.type === "project-header") {
             return (

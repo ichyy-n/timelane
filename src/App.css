@@ -962,6 +962,119 @@ body {
   color: var(--accent);
 }
 
+/* Filter panel */
+.filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.filter-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.filter-checkbox:hover {
+  background: var(--bg-hover);
+}
+
+.filter-checkbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.filter-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.filter-clear-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filter-clear-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Group header row */
+.group-header-row {
+  background: var(--project-header-bg);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.group-header-row:hover {
+  background: var(--project-header-hover);
+}
+
+.group-header-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-header-label {
+  cursor: default;
+}
+
+.group-header-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  background: var(--bg-surface);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+/* Group header in gantt */
+.gantt-group-header-row {
+  background: transparent;
+}
+
 /* Print styles - show only gantt chart area */
 @media print {
   .toolbar {

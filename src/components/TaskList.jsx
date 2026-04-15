@@ -18,6 +18,8 @@ export default function TaskList({
   onProjectNameChange,
   onReorder,
   colorMode = true,
+  collapsedGroups = new Set(),
+  onToggleGroupCollapse,
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -46,6 +48,28 @@ export default function TaskList({
         <span className="col-actions"></span>
       </div>
       {displayRows.map((row) => {
+        if (row.type === "group-header") {
+          const isCollapsed = collapsedGroups.has(row.groupKey);
+          return (
+            <div
+              key={`group-${row.groupKey}`}
+              className="task-list-row group-header-row"
+              onClick={() => onToggleGroupCollapse && onToggleGroupCollapse(row.groupKey)}
+            >
+              <span className="col-name group-header-name">
+                <span className="tree-toggle">
+                  {isCollapsed ? "▶" : "▼"}
+                </span>
+                <span className="group-header-label">{row.groupKey}</span>
+                <span className="group-header-count">{row.count}</span>
+              </span>
+              <span className="col-assignee"></span>
+              <span className="col-location"></span>
+              <span className="col-actions"></span>
+            </div>
+          );
+        }
+
         if (row.type === "project-header") {
           const proj = row.project;
           const isCollapsed = collapsedProjects.has(proj.id);

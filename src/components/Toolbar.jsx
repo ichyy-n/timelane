@@ -19,6 +19,11 @@ export default function Toolbar({
   onScrollToToday,
   sortMode,
   onSortModeChange,
+  showFilterPanel,
+  onToggleFilterPanel,
+  isFilterActive,
+  groupBy,
+  onGroupByChange,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -107,6 +112,24 @@ export default function Toolbar({
         {isMenuOpen && (
           <div className="hamburger-menu">
             <button onClick={() => handleMenuAction(onAddProject)}>+ プロジェクト</button>
+            <button onClick={() => { onToggleFilterPanel(); setIsMenuOpen(false); }}>
+              {isFilterActive ? "🔍 フィルタ ●" : "🔍 フィルタ"}
+            </button>
+            <div className="hamburger-menu-divider" />
+            <div className="hamburger-menu-label">グループ化</div>
+            {[
+              { value: "none", label: "なし" },
+              { value: "assignee", label: "担当者別" },
+              { value: "location", label: "場所別" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleMenuAction(() => onGroupByChange(opt.value))}
+                className={groupBy === opt.value ? "sort-active" : ""}
+              >
+                {groupBy === opt.value ? "✓ " : "　"}{opt.label}
+              </button>
+            ))}
             <button onClick={() => handleMenuAction(() => onColorModeChange(!colorMode))}>
               {colorMode ? "🎨 カラー → モノクロ" : "■ モノクロ → カラー"}
             </button>
