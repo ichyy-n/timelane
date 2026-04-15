@@ -1,35 +1,35 @@
-/* Light theme Gantt chart app */
+/* Notion-style minimal Gantt chart app */
 :root {
-  --bg-primary: #f8f9fa;
+  --bg-primary: #ffffff;
   --bg-secondary: #ffffff;
-  --bg-surface: #f1f3f5;
-  --bg-hover: #e9ecef;
-  --text-primary: #212529;
-  --text-secondary: #495057;
-  --text-muted: #868e96;
-  --border: #dee2e6;
-  --accent: #0d6efd;
-  --accent-hover: #0b5ed7;
-  --danger: #e63946;
-  --project-header-bg: #e8f0fe;
-  --project-header-hover: #d4e4fc;
+  --bg-surface: #f7f6f3;
+  --bg-hover: #f1f1ef;
+  --text-primary: #37352f;
+  --text-secondary: #787774;
+  --text-muted: #b4b0a8;
+  --border: #e9e9e7;
+  --accent: #2eaadc;
+  --accent-hover: #2496c4;
+  --danger: #eb5757;
+  --project-header-bg: transparent;
+  --project-header-hover: rgba(55, 53, 47, 0.04);
 }
 
-/* Dark theme overrides */
+/* Dark theme overrides - Notion dark mode */
 [data-theme="dark"] {
-  --bg-primary: #1a1d21;
-  --bg-secondary: #22262b;
-  --bg-surface: #2a2e34;
-  --bg-hover: #33383f;
-  --text-primary: #e1e3e6;
-  --text-secondary: #a0a4aa;
-  --text-muted: #6c7177;
-  --border: #3a3f46;
-  --accent: #4da3ff;
-  --accent-hover: #3b8de8;
-  --danger: #ff6b7a;
-  --project-header-bg: #1e2a3a;
-  --project-header-hover: #253548;
+  --bg-primary: #191919;
+  --bg-secondary: #202020;
+  --bg-surface: #2f2f2f;
+  --bg-hover: #363636;
+  --text-primary: #e3e2df;
+  --text-secondary: #9b9a97;
+  --text-muted: #5a5a58;
+  --border: #373737;
+  --accent: #529cca;
+  --accent-hover: #468bb5;
+  --danger: #eb5757;
+  --project-header-bg: transparent;
+  --project-header-hover: rgba(255, 255, 255, 0.04);
 }
 
 * {
@@ -41,8 +41,9 @@
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app {
@@ -51,15 +52,15 @@ body {
   height: 100vh;
 }
 
-/* Toolbar */
+/* Toolbar - Notion style: no shadow, subtle border only */
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 10px 16px;
   background: var(--bg-secondary);
-  border-bottom: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
   gap: 12px;
 }
 
@@ -71,7 +72,7 @@ body {
 }
 
 .range-label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
   margin-right: 4px;
 }
@@ -83,43 +84,59 @@ body {
 
 .toolbar-range select {
   padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
   color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
   appearance: auto;
+  transition: background 0.15s;
+}
+
+.toolbar-range select:hover {
+  background: var(--bg-hover);
+}
+
+.toolbar-range select:focus {
+  border-color: var(--border);
+  outline: none;
 }
 
 .project-name-input {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-primary);
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   font-size: 16px;
   font-weight: 600;
   width: 300px;
+  transition: background 0.15s;
+}
+
+.project-name-input:hover {
+  background: var(--bg-hover);
 }
 
 .project-name-input:focus {
   outline: none;
-  border-color: var(--accent);
+  background: var(--bg-secondary);
+  border-color: var(--border);
 }
 
 .toolbar-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .toolbar-actions button,
 .toolbar-actions .btn-load {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--text-secondary);
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   transition: background 0.15s;
@@ -128,44 +145,46 @@ body {
 .toolbar-actions button:hover,
 .toolbar-actions .btn-load:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .btn-primary {
   background: var(--accent) !important;
   color: #ffffff !important;
   border: none !important;
-  font-weight: 600;
-  border-radius: 6px;
+  font-weight: 500;
+  border-radius: 4px;
 }
 
 .btn-primary:hover {
   background: var(--accent-hover) !important;
 }
 
-/* Add task button (primary action in toolbar) */
+/* Add task button - Notion "New" style: subtle, not loud */
 .btn-add-task {
-  background: #2563eb;
-  color: #ffffff;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
-  transition: background 0.15s;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
 }
 
 .btn-add-task:hover {
-  background: #1d4ed8;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 /* View mode toggle button */
 .view-mode-btn {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--text-secondary);
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   transition: background 0.15s;
@@ -197,37 +216,47 @@ body {
   background: var(--bg-primary);
 }
 
-/* Task list */
+/* Task list - Notion style: generous spacing, subtle borders */
 .task-list-header {
   display: flex;
-  padding: 6px 12px;
-  background: var(--bg-surface);
+  padding: 8px 14px;
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   position: sticky;
   top: 0;
   z-index: 1;
-  height: 24px;
+  height: 32px;
   align-items: center;
 }
 
 .task-list-row {
   display: flex;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 4px 14px;
+  border-bottom: 1px solid rgba(233, 233, 231, 0.4);
   cursor: pointer;
   align-items: center;
-  height: 24px;
+  height: 32px;
+  transition: background 0.1s;
+}
+
+[data-theme="dark"] .task-list-row {
+  border-bottom: 1px solid rgba(55, 55, 55, 0.4);
 }
 
 .task-list-row:hover {
-  background: var(--bg-hover);
+  background: rgba(55, 53, 47, 0.04);
 }
 
-/* Project header row */
+[data-theme="dark"] .task-list-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Project header row - Notion style: bold text, no loud background */
 .project-header-row {
   background: var(--project-header-bg);
   font-weight: 600;
@@ -235,7 +264,7 @@ body {
 }
 
 .project-header-row:hover {
-  background: var(--project-header-hover, #d4e4fc);
+  background: var(--project-header-hover);
 }
 
 .project-header-name {
@@ -255,15 +284,11 @@ body {
   cursor: pointer;
   font-size: 11px;
   margin-left: 4px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .project-header-row:hover .edit-icon {
   opacity: 1;
-}
-
-[data-theme="dark"] .edit-icon {
-  color: #999;
 }
 
 .project-inline-edit {
@@ -283,13 +308,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .col-assignee {
   flex: 1;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -298,7 +323,7 @@ body {
 .col-location {
   flex: 1;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -321,7 +346,7 @@ body {
 }
 
 .gantt-notes-header {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .col-actions {
@@ -344,33 +369,41 @@ body {
   font-size: 14px;
   padding: 1px 4px;
   border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.task-list-row:hover .btn-delete {
+  opacity: 1;
 }
 
 .btn-delete:hover {
   color: var(--danger);
-  background: rgba(230, 57, 70, 0.1);
+  background: rgba(235, 87, 87, 0.08);
 }
 
 /* Tree toggle */
 .tree-toggle {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
   font-size: 8px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   border-radius: 3px;
+  transition: background 0.1s;
 }
 
 .tree-toggle:hover {
   background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .tree-toggle-placeholder {
-  width: 16px;
+  width: 18px;
   flex-shrink: 0;
 }
 
@@ -385,21 +418,26 @@ body {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--bg-surface);
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
 }
 
 .gantt-header-cell {
-  padding: 4px 4px;
+  padding: 6px 4px;
   text-align: center;
   font-size: 11px;
-  color: var(--text-secondary);
-  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  border-right: 1px solid rgba(233, 233, 231, 0.5);
   flex-shrink: 0;
-  height: 24px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 400;
+}
+
+[data-theme="dark"] .gantt-header-cell {
+  border-right: 1px solid rgba(55, 55, 55, 0.5);
 }
 
 .gantt-body {
@@ -419,49 +457,57 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-right: 1px solid var(--border);
-  opacity: 0.3;
+  border-right: 1px dashed rgba(233, 233, 231, 0.6);
+}
+
+[data-theme="dark"] .gantt-grid-col {
+  border-right: 1px dashed rgba(55, 55, 55, 0.6);
 }
 
 .gantt-grid-col:nth-child(even) {
-  background: rgba(0, 0, 0, 0.02);
+  background: transparent;
 }
 
 .gantt-row {
   position: absolute;
   left: 0;
   right: 0;
-  height: 24px;
-  border-bottom: 1px solid rgba(222, 226, 230, 0.5);
+  height: 32px;
+  border-bottom: 1px solid rgba(233, 233, 231, 0.3);
+}
+
+[data-theme="dark"] .gantt-row {
+  border-bottom: 1px solid rgba(55, 55, 55, 0.3);
 }
 
 /* Project header row in gantt */
 .gantt-project-header-row {
-  background: var(--project-header-bg);
+  background: transparent;
 }
 
+/* Gantt bar - Notion style: pill shape, pastel colors, no shadow */
 .gantt-bar {
   position: absolute;
-  top: 8px;
-  height: 8px;
-  border-radius: 4px;
+  top: 10px;
+  height: 12px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   cursor: pointer;
   user-select: none;
-  transition: opacity 0.15s;
+  transition: filter 0.15s;
 }
 
 .gantt-bar:hover {
-  opacity: 0.85;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  filter: brightness(1.08);
+  box-shadow: none;
 }
 
 .gantt-bar.summary-bar {
-  opacity: 0.5;
-  border-radius: 2px;
-  height: 8px;
-  top: 8px;
+  opacity: 0.45;
+  border-radius: 3px;
+  height: 10px;
+  top: 11px;
 }
 
 .bar-drag-area {
@@ -482,38 +528,38 @@ body {
 }
 
 .bar-handle-left {
-  border-radius: 4px 0 0 4px;
+  border-radius: 6px 0 0 6px;
 }
 
 .bar-handle-right {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 6px 6px 0;
 }
 
 .bar-handle:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
-/* Milestone marker (inverted triangle) - slimmer */
+/* Milestone marker (inverted triangle) */
 .milestone-marker {
   width: 0;
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 9px solid #e63946;
+  border-top: 9px solid var(--danger);
   position: absolute;
-  top: 7px;
+  top: 11px;
   cursor: pointer;
+  transition: transform 0.15s;
 }
 
 .milestone-marker:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
-/* Status bar */
-/* B5: Inline project creation input */
+/* Inline project creation input */
 .inline-project-input {
-  padding: 4px 12px;
-  background: var(--bg-surface);
+  padding: 6px 14px;
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
 }
 
@@ -524,51 +570,64 @@ body {
   border-radius: 4px;
   font-size: 13px;
   outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-/* B3: Drag feedback */
+/* Drag feedback */
 .task-list-row.dragging {
   opacity: 0.4;
 }
 
+/* Status bar - Notion style: very subtle */
 .status-bar {
   padding: 4px 16px;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
   font-size: 11px;
   color: var(--text-muted);
+  opacity: 0.7;
 }
 
-/* Modal */
+/* Modal - Notion style: large radius, soft shadow */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(15, 15, 15, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
 }
 
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .modal-content {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 24px;
-  width: 400px;
+  border-radius: 12px;
+  padding: 28px;
+  width: 420px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .modal-content {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .modal-content h3 {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   font-size: 18px;
+  font-weight: 600;
 }
 
 .modal-content label {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-size: 13px;
   color: var(--text-secondary);
 }
@@ -583,9 +642,10 @@ body {
   padding: 8px 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--text-primary);
   font-size: 14px;
+  transition: border-color 0.15s;
 }
 
 .modal-content input:focus,
@@ -652,6 +712,11 @@ body {
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
 }
 
 .color-swatch.selected {
@@ -663,40 +728,47 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .modal-actions button {
   padding: 8px 20px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.modal-actions button:hover {
+  background: var(--bg-hover);
 }
 
 .modal-actions .btn-primary {
   background: var(--accent) !important;
   color: #ffffff !important;
+  border: none !important;
+}
+
+.modal-actions .btn-primary:hover {
+  background: var(--accent-hover) !important;
 }
 
 /* Color mode toggle */
 .btn-color-active {
-  background: #fff3cd !important;
-  border-color: #ffc107 !important;
+  background: rgba(46, 170, 220, 0.1) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
 }
 
 /* Dark mode toggle */
 .btn-dark-active {
-  background: #2a2e34 !important;
-  border-color: #4da3ff !important;
-  color: #4da3ff !important;
-}
-
-[data-theme="dark"] .btn-color-active {
-  background: #3a3520 !important;
-  border-color: #b8860b !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
 }
 
 /* Milestone dates editing */
@@ -721,7 +793,7 @@ body {
 .milestone-date-row select {
   padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 13px;
@@ -730,7 +802,7 @@ body {
 .milestone-date-row input[type="text"] {
   padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 13px;
@@ -745,6 +817,7 @@ body {
   cursor: pointer;
   font-size: 13px;
   margin-top: 4px;
+  transition: background 0.15s;
 }
 
 .btn-add-date:hover {
@@ -765,10 +838,10 @@ body {
 
 .hamburger-btn {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   border: none;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -788,10 +861,14 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
   z-index: 50;
   min-width: 200px;
   padding: 4px 0;
+}
+
+[data-theme="dark"] .hamburger-menu {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .hamburger-menu button,
@@ -802,10 +879,10 @@ body {
   background: none;
   border: none;
   color: var(--text-primary);
-  padding: 8px 16px;
+  padding: 8px 14px;
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.12s;
+  transition: background 0.1s;
   border-radius: 0;
 }
 

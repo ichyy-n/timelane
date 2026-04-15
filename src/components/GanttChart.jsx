@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo } from "react";
 
 const CELL_WIDTH = 80;
-const ROW_HEIGHT = 24;
+const ROW_HEIGHT = 32;
 const NOTES_WIDTH = 160;
 
 // Get month index (0-based) relative to viewRange start
