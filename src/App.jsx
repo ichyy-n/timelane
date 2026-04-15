@@ -102,13 +102,10 @@ function getDescendantIds(tasks, parentId) {
 // A3: Dynamic viewRange initial value
 function computeDefaultViewRange() {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  let startMonth = currentMonth - 6;
-  let startYear = currentYear;
-  if (startMonth < 1) { startMonth += 12; startYear -= 1; }
-  let endMonth = currentMonth + 6;
-  let endYear = currentYear;
+  const startYear = now.getFullYear();
+  const startMonth = now.getMonth() + 1;
+  let endMonth = startMonth + 12;
+  let endYear = startYear;
   if (endMonth > 12) { endMonth -= 12; endYear += 1; }
   return { startYear, startMonth, endYear, endMonth };
 }
