@@ -81,7 +81,7 @@ export default function Toolbar({
           ))}
         </select>
       </div>
-      <button onClick={onAddTask}>+ タスク追加</button>
+      <button className="btn-add-task" onClick={onAddTask}>+ タスク追加</button>
       <button
         className="view-mode-btn"
         onClick={() => onViewModeChange(viewMode === 'month' ? 'week' : 'month')}
