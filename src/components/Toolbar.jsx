@@ -1,26 +1,55 @@
+import { useState, useRef, useEffect } from "react";
+
 export default function Toolbar({
   onAddTask,
   onAddProject,
   onSave,
   onLoad,
   onExportExcel,
+  onPrintPdf,
   viewRange,
   onViewRangeChange,
   colorMode,
   onColorModeChange,
   viewMode,
   onViewModeChange,
-  searchQuery,
-  onSearchChange,
   darkMode,
   onDarkModeChange,
   onClearAll,
+  onScrollToToday,
+  sortMode,
+  onSortModeChange,
+  showFilterPanel,
+  onToggleFilterPanel,
+  isFilterActive,
+  groupBy,
+  onGroupByChange,
 }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
   const years = Array.from({ length: 10 }, (_, i) => 2024 + i);
   const monthNums = Array.from({ length: 12 }, (_, i) => i + 1);
 
   const handleRangeChange = (field, value) => {
     onViewRangeChange((prev) => ({ ...prev, [field]: Number(value) }));
+  };
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleMouseDown = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [isMenuOpen]);
+
+  const handleMenuAction = (action) => {
+    action();
+    setIsMenuOpen(false);
   };
 
   return (
@@ -61,56 +90,84 @@ export default function Toolbar({
           ))}
         </select>
       </div>
-      <div className="toolbar-search">
-        <input
-          type="text"
-          placeholder="タスク/担当者/プロジェクトで絞り込み"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
-          <button onClick={() => onSearchChange('')} className="btn-clear-search">✕</button>
+      <button className="btn-add-task" onClick={onAddTask}>+ タスク追加</button>
+      <button className="btn-today" onClick={onScrollToToday}>今日</button>
+      <select
+        className="view-mode-select"
+        value={viewMode}
+        onChange={(e) => onViewModeChange(e.target.value)}
+      >
+        <option value="week">週</option>
+        <option value="month">月</option>
+        <option value="quarter">四半期</option>
+      </select>
+      <div className="hamburger-wrapper" ref={menuRef}>
+        <button
+          className="hamburger-btn"
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+          title="メニュー"
+        >
+          ☰
+        </button>
+        {isMenuOpen && (
+          <div className="hamburger-menu">
+            <button onClick={() => handleMenuAction(onAddProject)}>+ プロジェクト</button>
+            <button onClick={() => { onToggleFilterPanel(); setIsMenuOpen(false); }}>
+              {isFilterActive ? "🔍 フィルタ ●" : "🔍 フィルタ"}
+            </button>
+            <div className="hamburger-menu-divider" />
+            <div className="hamburger-menu-label">グループ化</div>
+            {[
+              { value: "none", label: "なし" },
+              { value: "assignee", label: "担当者別" },
+              { value: "location", label: "場所別" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleMenuAction(() => onGroupByChange(opt.value))}
+                className={groupBy === opt.value ? "sort-active" : ""}
+              >
+                {groupBy === opt.value ? "✓ " : "　"}{opt.label}
+              </button>
+            ))}
+            <button onClick={() => handleMenuAction(() => onColorModeChange(!colorMode))}>
+              {colorMode ? "🎨 カラー → モノクロ" : "■ モノクロ → カラー"}
+            </button>
+            <button onClick={() => handleMenuAction(() => onDarkModeChange(!darkMode))}>
+              {darkMode ? "☀️ ライトモードに切替" : "🌙 ダークモードに切替"}
+            </button>
+            <div className="hamburger-menu-divider" />
+            <div className="hamburger-menu-label">並び替え</div>
+            {[
+              { value: "manual", label: "手動" },
+              { value: "startDate", label: "開始日順" },
+              { value: "name", label: "名前順" },
+              { value: "assignee", label: "担当者順" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleMenuAction(() => onSortModeChange(opt.value))}
+                className={sortMode === opt.value ? "sort-active" : ""}
+              >
+                {sortMode === opt.value ? "✓ " : "　"}{opt.label}
+              </button>
+            ))}
+            <div className="hamburger-menu-divider" />
+            <button onClick={() => handleMenuAction(onExportExcel)}>Excel出力</button>
+            <button onClick={() => handleMenuAction(onPrintPdf)}>PDF出力</button>
+            <button onClick={() => handleMenuAction(onSave)}>JSON保存</button>
+            <label className="hamburger-menu-load">
+              JSON読込
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => { onLoad(e); setIsMenuOpen(false); }}
+                style={{ display: "none" }}
+              />
+            </label>
+            <button onClick={() => handleMenuAction(onClearAll)}>🗑️ クリア</button>
+          </div>
         )}
-      </div>
-      <div className="toolbar-actions">
-        <button
-          onClick={() => onViewModeChange(viewMode === 'month' ? 'week' : 'month')}
-          className={viewMode === 'week' ? 'btn-active' : ''}
-          title={viewMode === 'month' ? '週表示に切替' : '月表示に切替'}
-        >
-          {viewMode === 'month' ? '週表示' : '月表示'}
-        </button>
-        <button
-          onClick={() => onColorModeChange(!colorMode)}
-          className={colorMode ? "btn-color-active" : ""}
-          title={colorMode ? "カラー ON" : "モノクロ"}
-        >
-          {colorMode ? "\uD83C\uDFA8 カラー" : "\u25A0 モノクロ"}
-        </button>
-        <button
-          onClick={() => onDarkModeChange(!darkMode)}
-          className={darkMode ? "btn-dark-active" : ""}
-          title={darkMode ? "ライトモードに切替" : "ダークモードに切替"}
-        >
-          {darkMode ? "☀️ ライト" : "🌙 ダーク"}
-        </button>
-        <button onClick={onClearAll} title="全データをクリア">🗑️ クリア</button>
-        <button onClick={onAddProject}>+ プロジェクト</button>
-        <button onClick={onAddTask}>
-          + タスク追加
-        </button>
-        <button onClick={onExportExcel}>Excel出力</button>
-        <button onClick={onSave}>JSON保存</button>
-        <label className="btn-load">
-          JSON読込
-          <input
-            type="file"
-            accept=".json"
-            onChange={onLoad}
-            style={{ display: "none" }}
-          />
-        </label>
       </div>
     </div>
   );

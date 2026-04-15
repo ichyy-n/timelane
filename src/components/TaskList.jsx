@@ -1,5 +1,11 @@
 import { useState } from "react";
 
+const STATUS_COLORS = {
+  not_started: "#b4b0a8",
+  in_progress: "#2eaadc",
+  done: "#4dab9a",
+};
+
 export default function TaskList({
   displayRows,
   collapsedIds,
@@ -12,7 +18,8 @@ export default function TaskList({
   onProjectNameChange,
   onReorder,
   colorMode = true,
-  searchQuery = "",  // C3: filter highlight query
+  collapsedGroups = new Set(),
+  onToggleGroupCollapse,
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -41,6 +48,28 @@ export default function TaskList({
         <span className="col-actions"></span>
       </div>
       {displayRows.map((row) => {
+        if (row.type === "group-header") {
+          const isCollapsed = collapsedGroups.has(row.groupKey);
+          return (
+            <div
+              key={`group-${row.groupKey}`}
+              className="task-list-row group-header-row"
+              onClick={() => onToggleGroupCollapse && onToggleGroupCollapse(row.groupKey)}
+            >
+              <span className="col-name group-header-name">
+                <span className="tree-toggle">
+                  {isCollapsed ? "▶" : "▼"}
+                </span>
+                <span className="group-header-label">{row.groupKey}</span>
+                <span className="group-header-count">{row.count}</span>
+              </span>
+              <span className="col-assignee"></span>
+              <span className="col-location"></span>
+              <span className="col-actions"></span>
+            </div>
+          );
+        }
+
         if (row.type === "project-header") {
           const proj = row.project;
           const isCollapsed = collapsedProjects.has(proj.id);
@@ -68,12 +97,21 @@ export default function TaskList({
                     autoFocus
                   />
                 ) : (
-                  <span
-                    className="project-name-label"
-                    onDoubleClick={(e) => startEditProjectName(e, proj)}
-                  >
-                    {proj.name}
-                  </span>
+                  <>
+                    <span
+                      className="project-name-label"
+                      onDoubleClick={(e) => startEditProjectName(e, proj)}
+                    >
+                      {proj.name}
+                    </span>
+                    <span
+                      className="edit-icon"
+                      onClick={(e) => startEditProjectName(e, proj)}
+                      title="プロジェクト名を編集"
+                    >
+                      ✏
+                    </span>
+                  </>
                 )}
               </span>
               <span className="col-assignee"></span>
@@ -101,15 +139,10 @@ export default function TaskList({
         const isMilestone = task.type === "milestone";
         const projectId = row.projectId;
 
-        // C3: Dim non-matching tasks when searchQuery is active
-        const isMatch = !searchQuery || (task.name && task.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        const rowOpacity = searchQuery && !isMatch ? 0.3 : 1;
-
         return (
           <div
             key={task.id}
             className={`task-list-row${draggedItem?.taskId === task.id ? " dragging" : ""}`}
-            style={{ opacity: rowOpacity }}
             onClick={() => onTaskClick(task, projectId)}
             draggable
             onDragStart={(e) => {
@@ -146,6 +179,11 @@ export default function TaskList({
               ) : (
                 <span className="tree-toggle-placeholder" />
               )}
+              <span
+                className="task-status-dot"
+                style={{ backgroundColor: STATUS_COLORS[task.status || "not_started"] }}
+                title={task.status === "done" ? "完了" : task.status === "in_progress" ? "進行中" : "未着手"}
+              />
               {task.name}
             </span>
             <span className="col-assignee">{task.assignee}</span>

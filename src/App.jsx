@@ -102,13 +102,10 @@ function getDescendantIds(tasks, parentId) {
 // A3: Dynamic viewRange initial value
 function computeDefaultViewRange() {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  let startMonth = currentMonth - 6;
-  let startYear = currentYear;
-  if (startMonth < 1) { startMonth += 12; startYear -= 1; }
-  let endMonth = currentMonth + 6;
-  let endYear = currentYear;
+  const startYear = now.getFullYear();
+  const startMonth = now.getMonth() + 1;
+  let endMonth = startMonth + 12;
+  let endYear = startYear;
   if (endMonth > 12) { endMonth -= 12; endYear += 1; }
   return { startYear, startMonth, endYear, endMonth };
 }
@@ -136,11 +133,20 @@ function App() {
   // C2: viewMode state
   const [viewMode, setViewMode] = useState('month');
 
+  // Sort mode state
+  const [sortMode, setSortMode] = useState('manual');
+
   // Dark mode state (independent of colorMode)
   const [darkMode, setDarkMode] = useState(false);
 
-  // C3: Search/filter state
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filter state
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterState, setFilterState] = useState({ assignees: [], locations: [] });
+
+  // Group state
+  const [groupBy, setGroupBy] = useState('none'); // 'none' | 'assignee' | 'location'
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+
 
   // Apply dark mode to document body
   useEffect(() => {
@@ -238,90 +244,196 @@ function App() {
     requestAnimationFrame(() => { isSyncingRef.current = false; });
   }, []);
 
+  // Scroll to today's position in the right panel
+  const handleScrollToToday = useCallback(() => {
+    if (!rightPanelRef.current) return;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const CELL_WIDTH = 80;
+
+    let px;
+    if (viewMode === 'week') {
+      // Approximate week-based position
+      const startDate = new Date(viewRange.startYear, viewRange.startMonth - 1, 1);
+      const daysDiff = (today - startDate) / (1000 * 60 * 60 * 24);
+      px = (daysDiff / 7) * CELL_WIDTH;
+    } else if (viewMode === 'quarter') {
+      const startQ = Math.ceil(viewRange.startMonth / 3);
+      const startQNum = viewRange.startYear * 4 + startQ;
+      const todayQ = Math.ceil((today.getMonth() + 1) / 3);
+      const todayQNum = today.getFullYear() * 4 + todayQ;
+      const qStartMonth = (todayQ - 1) * 3 + 1;
+      let totalDays = 0;
+      for (let mi = qStartMonth; mi < qStartMonth + 3; mi++) {
+        totalDays += new Date(today.getFullYear(), mi, 0).getDate();
+      }
+      let daysElapsed = 0;
+      for (let mi = qStartMonth; mi < today.getMonth() + 1; mi++) {
+        daysElapsed += new Date(today.getFullYear(), mi, 0).getDate();
+      }
+      daysElapsed += today.getDate() - 1;
+      const ratio = daysElapsed / totalDays;
+      px = ((todayQNum - startQNum) + ratio) * CELL_WIDTH;
+    } else {
+      // Month view
+      const monthIdx = (today.getFullYear() - viewRange.startYear) * 12 + (today.getMonth() + 1 - viewRange.startMonth);
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const ratio = (today.getDate() - 1) / daysInMonth;
+      px = (monthIdx + ratio) * CELL_WIDTH;
+    }
+
+    const panelWidth = rightPanelRef.current.clientWidth;
+    rightPanelRef.current.scrollTo({ left: px - panelWidth / 2, behavior: 'smooth' });
+  }, [viewMode, viewRange]);
+
   const months = useMemo(
     () => getMonthLabels(viewRange.startYear, viewRange.startMonth, viewRange.endYear, viewRange.endMonth),
     [viewRange]
   );
 
-  // Build display rows
-  const displayRows = useMemo(() => {
-    const rows = [];
+  // Collect unique filter options from all tasks
+  const filterOptions = useMemo(() => {
+    const assignees = new Set();
+    const locations = new Set();
     for (const proj of projects) {
-      rows.push({ type: "project-header", project: proj });
-      if (!collapsedProjects.has(proj.id)) {
-        const { ordered, depthMap } = buildTreeOrder(proj.tasks);
-        const hidden = new Set();
-        for (const id of collapsedIds) {
-          const descs = getDescendantIds(proj.tasks, id);
-          descs.forEach((d) => hidden.add(d));
+      for (const t of proj.tasks) {
+        if (t.assignee) assignees.add(t.assignee);
+        if (t.location) locations.add(t.location);
+      }
+    }
+    return {
+      assignees: [...assignees].sort(),
+      locations: [...locations].sort(),
+    };
+  }, [projects]);
+
+  // Check if any filter is active
+  const isFilterActive = filterState.assignees.length > 0 || filterState.locations.length > 0;
+
+  // Build display rows with filter and grouping support
+  const displayRows = useMemo(() => {
+    // Helper: filter tasks
+    const applyFilter = (tasks) => {
+      if (!isFilterActive) return tasks;
+      return tasks.filter((t) => {
+        const matchAssignee = filterState.assignees.length === 0 || filterState.assignees.includes(t.assignee || '');
+        const matchLocation = filterState.locations.length === 0 || filterState.locations.includes(t.location || '');
+        return matchAssignee && matchLocation;
+      });
+    };
+
+    // Helper: sort tasks
+    const applySort = (tasks) => {
+      if (sortMode === 'manual') return tasks;
+      return [...tasks].sort((a, b) => {
+        if (sortMode === 'startDate') return (a.startDate || '').localeCompare(b.startDate || '');
+        if (sortMode === 'name') return (a.name || '').localeCompare(b.name || '');
+        if (sortMode === 'assignee') return (a.assignee || '').localeCompare(b.assignee || '');
+        return 0;
+      });
+    };
+
+    // Helper: build task rows from a list of tasks
+    const buildTaskRows = (tasks, projectId) => {
+      const rows = [];
+      const { ordered, depthMap } = buildTreeOrder(tasks);
+      const hidden = new Set();
+      for (const id of collapsedIds) {
+        const descs = getDescendantIds(tasks, id);
+        descs.forEach((d) => hidden.add(d));
+      }
+      for (const task of ordered) {
+        if (!hidden.has(task.id)) {
+          rows.push({
+            type: "task",
+            task,
+            projectId,
+            depth: depthMap.get(task.id) || 0,
+            hasChildren: tasks.some((t) => t.parentId === task.id),
+          });
         }
-        for (const task of ordered) {
-          if (!hidden.has(task.id)) {
+      }
+      return rows;
+    };
+
+    // Grouping mode
+    if (groupBy !== 'none') {
+      const rows = [];
+      // Collect all tasks across projects, filtered and sorted
+      const allFiltered = [];
+      for (const proj of projects) {
+        const filtered = applyFilter(proj.tasks);
+        const sorted = applySort(filtered);
+        for (const t of sorted) {
+          allFiltered.push({ task: t, projectId: proj.id });
+        }
+      }
+
+      // Group by field
+      const groups = new Map();
+      for (const { task, projectId } of allFiltered) {
+        const key = (groupBy === 'assignee' ? task.assignee : task.location) || '（未設定）';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push({ task, projectId });
+      }
+
+      // Sort group keys
+      const sortedKeys = [...groups.keys()].sort((a, b) => {
+        if (a === '（未設定）') return 1;
+        if (b === '（未設定）') return -1;
+        return a.localeCompare(b);
+      });
+
+      for (const key of sortedKeys) {
+        const items = groups.get(key);
+        rows.push({
+          type: "group-header",
+          groupKey: key,
+          groupBy,
+          count: items.length,
+        });
+        if (!collapsedGroups.has(key)) {
+          for (const { task, projectId } of items) {
             rows.push({
               type: "task",
               task,
-              projectId: proj.id,
-              depth: depthMap.get(task.id) || 0,
-              hasChildren: proj.tasks.some((t) => t.parentId === task.id),
+              projectId,
+              depth: 0,
+              hasChildren: false,
             });
           }
         }
       }
+      return rows;
+    }
+
+    // Normal mode (no grouping)
+    const rows = [];
+    for (const proj of projects) {
+      rows.push({ type: "project-header", project: proj });
+      if (!collapsedProjects.has(proj.id)) {
+        const filtered = applyFilter(proj.tasks);
+        const sorted = applySort(filtered);
+        rows.push(...buildTaskRows(sorted, proj.id));
+      }
     }
     return rows;
-  }, [projects, collapsedProjects, collapsedIds]);
-
-  // C3: Filtered display rows (UX-4: show project header when child tasks match)
-  const filteredDisplayRows = useMemo(() => {
-    if (!searchQuery.trim()) return displayRows;
-    const q = searchQuery.toLowerCase();
-
-    // Step 1: Collect projectIds that have matching tasks
-    const matchedProjectIds = new Set();
-    // Also track which project names match directly
-    const nameMatchedProjectIds = new Set();
-
-    for (const row of displayRows) {
-      if (row.type === 'project-header') {
-        if (row.project.name.toLowerCase().includes(q)) {
-          nameMatchedProjectIds.add(row.project.id);
-        }
-      } else {
-        const t = row.task;
-        if (
-          t.name?.toLowerCase().includes(q) ||
-          t.assignee?.toLowerCase().includes(q) ||
-          t.location?.toLowerCase().includes(q)
-        ) {
-          matchedProjectIds.add(row.projectId);
-        }
-      }
-    }
-
-    // Step 2: Filter rows
-    return displayRows.filter(row => {
-      if (row.type === 'project-header') {
-        const pid = row.project.id;
-        // Show header if project name matches OR any child task matches
-        return nameMatchedProjectIds.has(pid) || matchedProjectIds.has(pid);
-      }
-      // If project name matched, show all tasks under it
-      if (nameMatchedProjectIds.has(row.projectId)) return true;
-      // Otherwise only show matching tasks
-      const t = row.task;
-      return (
-        t.name?.toLowerCase().includes(q) ||
-        t.assignee?.toLowerCase().includes(q) ||
-        t.location?.toLowerCase().includes(q)
-      );
-    });
-  }, [displayRows, searchQuery]);
+  }, [projects, collapsedProjects, collapsedIds, sortMode, filterState, isFilterActive, groupBy, collapsedGroups]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
       const next = new Set(prev);
       if (next.has(taskId)) next.delete(taskId);
       else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const toggleGroupCollapse = useCallback((groupKey) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
       return next;
     });
   }, []);
@@ -469,6 +581,10 @@ function App() {
     );
   }, [setProjectsWithHistory]);
 
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   const handleExportExcel = useCallback(() => {
     exportToExcel(projects, viewRange);
   }, [projects, viewRange]);
@@ -605,18 +721,88 @@ function App() {
         onSave={handleSave}
         onLoad={handleLoad}
         onExportExcel={handleExportExcel}
+        onPrintPdf={handlePrintPdf}
         viewRange={viewRange}
         onViewRangeChange={setViewRange}
         colorMode={colorMode}
         onColorModeChange={setColorMode}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         darkMode={darkMode}
         onDarkModeChange={setDarkMode}
         onClearAll={handleClearAll}
+        onScrollToToday={handleScrollToToday}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        showFilterPanel={showFilterPanel}
+        onToggleFilterPanel={() => setShowFilterPanel((v) => !v)}
+        isFilterActive={isFilterActive}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
       />
+      {/* Filter panel */}
+      {showFilterPanel && (
+        <div className="filter-panel">
+          <div className="filter-group">
+            <span className="filter-group-label">担当者</span>
+            <div className="filter-options">
+              {filterOptions.assignees.map((a) => (
+                <label key={a} className="filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterState.assignees.includes(a)}
+                    onChange={() => {
+                      setFilterState((prev) => ({
+                        ...prev,
+                        assignees: prev.assignees.includes(a)
+                          ? prev.assignees.filter((x) => x !== a)
+                          : [...prev.assignees, a],
+                      }));
+                    }}
+                  />
+                  {a}
+                </label>
+              ))}
+              {filterOptions.assignees.length === 0 && (
+                <span className="filter-empty">（担当者なし）</span>
+              )}
+            </div>
+          </div>
+          <div className="filter-group">
+            <span className="filter-group-label">場所</span>
+            <div className="filter-options">
+              {filterOptions.locations.map((l) => (
+                <label key={l} className="filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterState.locations.includes(l)}
+                    onChange={() => {
+                      setFilterState((prev) => ({
+                        ...prev,
+                        locations: prev.locations.includes(l)
+                          ? prev.locations.filter((x) => x !== l)
+                          : [...prev.locations, l],
+                      }));
+                    }}
+                  />
+                  {l}
+                </label>
+              ))}
+              {filterOptions.locations.length === 0 && (
+                <span className="filter-empty">（場所なし）</span>
+              )}
+            </div>
+          </div>
+          {isFilterActive && (
+            <button
+              className="filter-clear-btn"
+              onClick={() => setFilterState({ assignees: [], locations: [] })}
+            >
+              フィルタ解除
+            </button>
+          )}
+        </div>
+      )}
       {/* B5: Inline project name input */}
       {addingProject && (
         <div className="inline-project-input">
@@ -637,7 +823,7 @@ function App() {
       <div className="main-content">
         <div className="left-panel" ref={leftPanelRef} onScroll={syncScroll("left")}>
           <TaskList
-            displayRows={filteredDisplayRows}
+            displayRows={displayRows}
             collapsedIds={collapsedIds}
             collapsedProjects={collapsedProjects}
             onToggleCollapse={toggleCollapse}
@@ -648,11 +834,13 @@ function App() {
             onProjectNameChange={handleProjectNameChange}
             onReorder={handleReorderTask}
             colorMode={colorMode}
+            collapsedGroups={collapsedGroups}
+            onToggleGroupCollapse={toggleGroupCollapse}
           />
         </div>
         <div className="right-panel" ref={rightPanelRef} onScroll={syncScroll("right")}>
           <GanttChart
-            displayRows={filteredDisplayRows}
+            displayRows={displayRows}
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}
