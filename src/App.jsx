@@ -139,8 +139,6 @@ function App() {
   // Dark mode state (independent of colorMode)
   const [darkMode, setDarkMode] = useState(false);
 
-  // C3: Search/filter state
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Apply dark mode to document body
   useEffect(() => {
@@ -270,52 +268,6 @@ function App() {
     }
     return rows;
   }, [projects, collapsedProjects, collapsedIds]);
-
-  // C3: Filtered display rows (UX-4: show project header when child tasks match)
-  const filteredDisplayRows = useMemo(() => {
-    if (!searchQuery.trim()) return displayRows;
-    const q = searchQuery.toLowerCase();
-
-    // Step 1: Collect projectIds that have matching tasks
-    const matchedProjectIds = new Set();
-    // Also track which project names match directly
-    const nameMatchedProjectIds = new Set();
-
-    for (const row of displayRows) {
-      if (row.type === 'project-header') {
-        if (row.project.name.toLowerCase().includes(q)) {
-          nameMatchedProjectIds.add(row.project.id);
-        }
-      } else {
-        const t = row.task;
-        if (
-          t.name?.toLowerCase().includes(q) ||
-          t.assignee?.toLowerCase().includes(q) ||
-          t.location?.toLowerCase().includes(q)
-        ) {
-          matchedProjectIds.add(row.projectId);
-        }
-      }
-    }
-
-    // Step 2: Filter rows
-    return displayRows.filter(row => {
-      if (row.type === 'project-header') {
-        const pid = row.project.id;
-        // Show header if project name matches OR any child task matches
-        return nameMatchedProjectIds.has(pid) || matchedProjectIds.has(pid);
-      }
-      // If project name matched, show all tasks under it
-      if (nameMatchedProjectIds.has(row.projectId)) return true;
-      // Otherwise only show matching tasks
-      const t = row.task;
-      return (
-        t.name?.toLowerCase().includes(q) ||
-        t.assignee?.toLowerCase().includes(q) ||
-        t.location?.toLowerCase().includes(q)
-      );
-    });
-  }, [displayRows, searchQuery]);
 
   const toggleCollapse = useCallback((taskId) => {
     setCollapsedIds((prev) => {
@@ -611,8 +563,6 @@ function App() {
         onColorModeChange={setColorMode}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         darkMode={darkMode}
         onDarkModeChange={setDarkMode}
         onClearAll={handleClearAll}
@@ -637,7 +587,7 @@ function App() {
       <div className="main-content">
         <div className="left-panel" ref={leftPanelRef} onScroll={syncScroll("left")}>
           <TaskList
-            displayRows={filteredDisplayRows}
+            displayRows={displayRows}
             collapsedIds={collapsedIds}
             collapsedProjects={collapsedProjects}
             onToggleCollapse={toggleCollapse}
@@ -652,7 +602,7 @@ function App() {
         </div>
         <div className="right-panel" ref={rightPanelRef} onScroll={syncScroll("right")}>
           <GanttChart
-            displayRows={filteredDisplayRows}
+            displayRows={displayRows}
             months={months}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskUpdate}

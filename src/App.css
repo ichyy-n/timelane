@@ -700,3 +700,56 @@ body {
   pointer-events: none;
   user-select: none;
 }
+
+/* Hamburger menu */
+.hamburger-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+
+.hamburger-btn {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.hamburger-btn:hover {
+  background: var(--bg-hover);
+}
+
+.hamburger-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  min-width: 200px;
+  padding: 4px 0;
+}
+
+.hamburger-menu button,
+.hamburger-menu .hamburger-menu-load {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.hamburger-menu button:hover,
+.hamburger-menu .hamburger-menu-load:hover {
+  background: var(--bg-hover);
+}
