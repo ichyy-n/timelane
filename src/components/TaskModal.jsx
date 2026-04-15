@@ -16,6 +16,25 @@ function getDescendantIds(tasks, taskId) {
   return ids;
 }
 
+// Get all IDs reachable via dependency chains (to prevent circular dependencies)
+function getDependencyChainIds(tasks, taskId) {
+  const ids = new Set();
+  const taskMap = new Map();
+  tasks.forEach((t) => taskMap.set(t.id, t));
+  function walk(id) {
+    const t = taskMap.get(id);
+    if (!t || !t.dependencies) return;
+    for (const depId of t.dependencies) {
+      if (!ids.has(depId)) {
+        ids.add(depId);
+        walk(depId);
+      }
+    }
+  }
+  walk(taskId);
+  return ids;
+}
+
 // Format date for input[type="date"] default
 function defaultDate(viewRange, offsetMonths) {
   let y = viewRange.startYear;
@@ -303,29 +322,47 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
             </>
           )}
 
-          {/* C1: 依存先タスク選択（milestoneには表示しない） */}
-          {form.type !== 'milestone' && (
-            <label>
-              依存先タスク（完了後に開始）
-              <select
-                multiple
-                value={form.dependencies || []}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                  handleChange("dependencies", selected);
-                }}
-                style={{ minHeight: 80 }}
-              >
-                {(allTasks || [])
-                  .filter(t => t.id !== (task?.id) && t.type !== 'milestone')
-                  .map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))
+          {/* C1: 依存先タスク選択（同一プロジェクト内、循環依存除外） */}
+          {form.type !== 'milestone' && (() => {
+            // Filter to same project, exclude self, milestones, and circular deps
+            const sameProjectTasks = (allTasks || []).filter(t => t.projectId === form.projectId);
+            const circularIds = task ? getDependencyChainIds(sameProjectTasks, task.id) : new Set();
+            // Also find tasks that depend on this task (would create reverse cycle)
+            const dependsOnMe = new Set();
+            if (task) {
+              const findReverseDeps = (id) => {
+                for (const t of sameProjectTasks) {
+                  if (t.dependencies && t.dependencies.includes(id) && !dependsOnMe.has(t.id)) {
+                    dependsOnMe.add(t.id);
+                    findReverseDeps(t.id);
+                  }
                 }
-              </select>
-              <small>Ctrl+クリックで複数選択</small>
-            </label>
-          )}
+              };
+              findReverseDeps(task.id);
+            }
+            const depOptions = sameProjectTasks.filter(t =>
+              t.id !== (task?.id) && t.type !== 'milestone' && !dependsOnMe.has(t.id)
+            );
+            return (
+              <label>
+                依存先タスク（完了後に開始）
+                <select
+                  multiple
+                  value={form.dependencies || []}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                    handleChange("dependencies", selected);
+                  }}
+                  style={{ minHeight: 80 }}
+                >
+                  {depOptions.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <small>Ctrl+クリックで複数選択</small>
+              </label>
+            );
+          })()}
 
           <label>
             担当者

@@ -209,7 +209,7 @@ export default function GanttChart({
     return dateToPixel(dateStr, viewRange, isEnd);
   };
 
-  // C1: Compute dependency arrow paths
+  // C1: Compute dependency arrow paths with collision detection
   const arrowPaths = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
     const paths = [];
@@ -239,7 +239,11 @@ export default function GanttChart({
         const x2 = toPixel(task.startDate || srcTask.endDate, false);
         const y1 = srcRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
         const y2 = depRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-        paths.push({ key: `${depId}->${task.id}`, x1, y1, x2, y2 });
+
+        // Collision: successor starts before predecessor ends
+        const hasCollision = task.startDate && srcTask.endDate && task.startDate < srcTask.endDate;
+
+        paths.push({ key: `${depId}->${task.id}`, x1, y1, x2, y2, hasCollision });
       }
     }
     return paths;
@@ -383,19 +387,27 @@ export default function GanttChart({
           ))}
         </div>
 
-        {/* C1: SVG dependency arrows overlay */}
+        {/* C1: SVG dependency arrows overlay (bezier curves) */}
         {arrowPaths.length > 0 && (
           <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
-            {arrowPaths.map(({ key, x1, y1, x2, y2 }) => (
-              <g key={key}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#6366f1" strokeWidth="1.5" markerEnd="url(#arrow)" />
-              </g>
-            ))}
             <defs>
-              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
+              <marker id="arrow-normal" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#d9890b" />
+              </marker>
+              <marker id="arrow-collision" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#eb5757" />
               </marker>
             </defs>
+            {arrowPaths.map(({ key, x1, y1, x2, y2, hasCollision }) => {
+              const dx = Math.abs(x2 - x1);
+              const cpOffset = Math.max(dx * 0.4, 20);
+              const d = `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`;
+              const color = hasCollision ? '#eb5757' : '#d9890b';
+              const markerId = hasCollision ? 'arrow-collision' : 'arrow-normal';
+              return (
+                <path key={key} d={d} stroke={color} strokeWidth="1.5" fill="none" markerEnd={`url(#${markerId})`} />
+              );
+            })}
           </svg>
         )}
 
