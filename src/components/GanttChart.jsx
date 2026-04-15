@@ -566,6 +566,10 @@ export default function GanttChart({
                     pointerEvents: 'none',
                   }} />
                 )}
+                {/* C4: Task name on bar */}
+                {Math.max(width, 20) >= 60 && (
+                  <span className="bar-label">{task.name}</span>
+                )}
                 <div
                   className="bar-handle bar-handle-left"
                   onMouseDown={(e) => handleMouseDown(e, task, "left", projectId)}

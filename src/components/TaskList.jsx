@@ -1,5 +1,11 @@
 import { useState } from "react";
 
+const STATUS_COLORS = {
+  not_started: "#b4b0a8",
+  in_progress: "#2eaadc",
+  done: "#4dab9a",
+};
+
 export default function TaskList({
   displayRows,
   collapsedIds,
@@ -149,6 +155,11 @@ export default function TaskList({
               ) : (
                 <span className="tree-toggle-placeholder" />
               )}
+              <span
+                className="task-status-dot"
+                style={{ backgroundColor: STATUS_COLORS[task.status || "not_started"] }}
+                title={task.status === "done" ? "完了" : task.status === "in_progress" ? "進行中" : "未着手"}
+              />
               {task.name}
             </span>
             <span className="col-assignee">{task.assignee}</span>
