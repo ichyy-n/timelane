@@ -67,12 +67,21 @@ export default function TaskList({
                     autoFocus
                   />
                 ) : (
-                  <span
-                    className="project-name-label"
-                    onDoubleClick={(e) => startEditProjectName(e, proj)}
-                  >
-                    {proj.name}
-                  </span>
+                  <>
+                    <span
+                      className="project-name-label"
+                      onDoubleClick={(e) => startEditProjectName(e, proj)}
+                    >
+                      {proj.name}
+                    </span>
+                    <span
+                      className="edit-icon"
+                      onClick={(e) => startEditProjectName(e, proj)}
+                      title="プロジェクト名を編集"
+                    >
+                      ✏
+                    </span>
+                  </>
                 )}
               </span>
               <span className="col-assignee"></span>

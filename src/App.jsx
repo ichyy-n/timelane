@@ -418,6 +418,10 @@ function App() {
     );
   }, [setProjectsWithHistory]);
 
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   const handleExportExcel = useCallback(() => {
     exportToExcel(projects, viewRange);
   }, [projects, viewRange]);
@@ -554,6 +558,7 @@ function App() {
         onSave={handleSave}
         onLoad={handleLoad}
         onExportExcel={handleExportExcel}
+        onPrintPdf={handlePrintPdf}
         viewRange={viewRange}
         onViewRangeChange={setViewRange}
         colorMode={colorMode}

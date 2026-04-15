@@ -6,6 +6,7 @@ export default function Toolbar({
   onSave,
   onLoad,
   onExportExcel,
+  onPrintPdf,
   viewRange,
   onViewRangeChange,
   colorMode,
@@ -106,6 +107,7 @@ export default function Toolbar({
               {darkMode ? "☀️ ライトモードに切替" : "🌙 ダークモードに切替"}
             </button>
             <button onClick={() => handleMenuAction(onExportExcel)}>Excel出力</button>
+            <button onClick={() => handleMenuAction(onPrintPdf)}>PDF出力</button>
             <button onClick={() => handleMenuAction(onSave)}>JSON保存</button>
             <label className="hamburger-menu-load">
               JSON読込

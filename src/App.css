@@ -248,6 +248,24 @@ body {
   cursor: default;
 }
 
+/* Project name edit icon (visible on hover) */
+.edit-icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  font-size: 11px;
+  margin-left: 4px;
+  color: #888;
+}
+
+.project-header-row:hover .edit-icon {
+  opacity: 1;
+}
+
+[data-theme="dark"] .edit-icon {
+  color: #999;
+}
+
 .project-inline-edit {
   padding: 1px 4px;
   font-size: 13px;
@@ -794,4 +812,31 @@ body {
 .hamburger-menu button:hover,
 .hamburger-menu .hamburger-menu-load:hover {
   background: var(--bg-hover);
+}
+
+/* Print styles - show only gantt chart area */
+@media print {
+  .toolbar {
+    display: none;
+  }
+  .status-bar {
+    display: none;
+  }
+  .left-panel {
+    display: none;
+  }
+  .inline-project-input {
+    display: none;
+  }
+  .right-panel {
+    width: 100%;
+    overflow: visible;
+  }
+  .main-content {
+    overflow: visible;
+  }
+  .gantt-container {
+    width: 100%;
+    height: auto;
+  }
 }
