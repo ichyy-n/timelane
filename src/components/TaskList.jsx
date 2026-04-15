@@ -12,7 +12,6 @@ export default function TaskList({
   onProjectNameChange,
   onReorder,
   colorMode = true,
-  searchQuery = "",  // C3: filter highlight query
 }) {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -101,15 +100,10 @@ export default function TaskList({
         const isMilestone = task.type === "milestone";
         const projectId = row.projectId;
 
-        // C3: Dim non-matching tasks when searchQuery is active
-        const isMatch = !searchQuery || (task.name && task.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        const rowOpacity = searchQuery && !isMatch ? 0.3 : 1;
-
         return (
           <div
             key={task.id}
             className={`task-list-row${draggedItem?.taskId === task.id ? " dragging" : ""}`}
-            style={{ opacity: rowOpacity }}
             onClick={() => onTaskClick(task, projectId)}
             draggable
             onDragStart={(e) => {

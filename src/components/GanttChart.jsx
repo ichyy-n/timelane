@@ -117,7 +117,6 @@ export default function GanttChart({
   onScroll,
   tasks = [],          // C1: flat list of all tasks (for dependency arrows)
   viewMode = "month",  // C2: 'month' | 'week'
-  searchQuery = "",    // C3: filter highlight query
 }) {
   const chartRef = useRef(null);
   const [dragging, setDragging] = useState(null);
@@ -216,23 +215,30 @@ export default function GanttChart({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  // Month boundary positions for dashed vertical lines
+  // Boundary positions for dashed vertical lines
   const monthBoundaries = useMemo(() => {
     const boundaries = [];
-    const { startYear, startMonth, endYear, endMonth } = viewRange;
-    // Iterate from second month to last month (boundaries between months)
-    let year = startYear;
-    let month = startMonth;
-    // Skip first boundary (left edge of chart) — start from second month
-    for (let i = 1; ; i++) {
-      let m = month + i;
-      let y = year;
-      while (m > 12) { m -= 12; y++; }
-      if (y > endYear || (y === endYear && m > endMonth)) break;
-      const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
-      const x = toPixel(dateStr, false);
-      if (x > 0 && x < columnCount * CELL_WIDTH) {
-        boundaries.push({ x, label: `${y}-${String(m).padStart(2, "0")}` });
+    if (viewMode === "week") {
+      // Week view: draw lines at each week cell boundary
+      for (let i = 1; i < columnCount; i++) {
+        const x = i * CELL_WIDTH;
+        boundaries.push({ x, label: headerLabels[i] || "" });
+      }
+    } else {
+      // Month view: draw lines at month boundaries (1st of each month)
+      const { startYear, startMonth, endYear, endMonth } = viewRange;
+      let year = startYear;
+      let month = startMonth;
+      for (let i = 1; ; i++) {
+        let m = month + i;
+        let y = year;
+        while (m > 12) { m -= 12; y++; }
+        if (y > endYear || (y === endYear && m > endMonth)) break;
+        const dateStr = `${y}-${String(m).padStart(2, "0")}-01`;
+        const x = toPixel(dateStr, false);
+        if (x > 0 && x < columnCount * CELL_WIDTH) {
+          boundaries.push({ x, label: `${y}-${String(m).padStart(2, "0")}` });
+        }
       }
     }
     return boundaries;
@@ -461,15 +467,11 @@ export default function GanttChart({
           const right = toPixel(task.endDate, true);
           const width = right - left;
 
-          // C3: Dim non-matching tasks when searchQuery is active
-          const isMatch = !searchQuery || (task.name && task.name.toLowerCase().includes(searchQuery.toLowerCase()));
-          const rowOpacity = searchQuery && !isMatch ? 0.3 : 1;
-
           return (
             <div
               key={task.id}
               className="gantt-row"
-              style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT, opacity: rowOpacity }}
+              style={{ top: rowIndex * ROW_HEIGHT, height: ROW_HEIGHT }}
             >
               <div
                 className="gantt-bar"
