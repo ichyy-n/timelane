@@ -82,6 +82,12 @@ export default function Toolbar({
         </select>
       </div>
       <button onClick={onAddTask}>+ タスク追加</button>
+      <button
+        className="view-mode-btn"
+        onClick={() => onViewModeChange(viewMode === 'month' ? 'week' : 'month')}
+      >
+        {viewMode === 'month' ? '週表示' : '月表示'}
+      </button>
       <div className="hamburger-wrapper" ref={menuRef}>
         <button
           className="hamburger-btn"
@@ -93,9 +99,6 @@ export default function Toolbar({
         {isMenuOpen && (
           <div className="hamburger-menu">
             <button onClick={() => handleMenuAction(onAddProject)}>+ プロジェクト</button>
-            <button onClick={() => handleMenuAction(() => onViewModeChange(viewMode === 'month' ? 'week' : 'month'))}>
-              {viewMode === 'month' ? '週表示に切替' : '月表示に切替'}
-            </button>
             <button onClick={() => handleMenuAction(() => onColorModeChange(!colorMode))}>
               {colorMode ? "🎨 カラー → モノクロ" : "■ モノクロ → カラー"}
             </button>
