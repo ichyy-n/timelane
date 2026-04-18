@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   MOCK_PROJECTS,
   dateUtil,
@@ -19,6 +19,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
   const [hoverTaskId, setHoverTaskId] = React.useState(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState('t1');
   const [modalState, setModalState] = React.useState({ open: false, task: null, projectId: null });
+  const fileInputRef = useRef(null);
 
   const C = dark ? {
     bg: '#0f1419', panel: '#161b22', panelAlt: '#1a2029',
@@ -105,6 +106,41 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
       })
     );
     handleModalClose();
+  };
+
+  const handleSave = () => {
+    const data = {
+      version: '1.0',
+      savedAt: new Date().toISOString(),
+      projects,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'timelane-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoad = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (data.version === '1.0' && data.projects) {
+          setProjects(data.projects);
+        } else {
+          alert('無効なファイル形式です。');
+        }
+      } catch {
+        alert('JSONファイルの読み込みに失敗しました。');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleDeleteTask = (taskId, projectId) => {
@@ -239,6 +275,12 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
           <ButtonP C={C}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M2 6h8M2 9h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
             フィルタ
+          </ButtonP>
+          <ButtonP C={C} onClick={handleSave}>
+            ↓ 保存
+          </ButtonP>
+          <ButtonP C={C} onClick={() => fileInputRef.current?.click()}>
+            ↑ 読込
           </ButtonP>
           <ButtonP C={C} primary onClick={() => handleAddTask(null)}>
             ＋ タスク追加
@@ -656,6 +698,13 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
           )}
         </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleLoad}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }
