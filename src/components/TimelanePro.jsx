@@ -749,11 +749,11 @@ function ProgressPieP({ label, value, C }) {
 }
 
 function StatusPillP({ C, status }) {
-  const meta = {
+  const meta = ({
     'done':        { label: '完了',   fg: C.success, bg: C.success + '22' },
     'in-progress': { label: '進行中', fg: C.accent,  bg: C.accentSoft },
     'planned':     { label: '予定',   fg: C.textSub, bg: C.borderSoft },
-  }[status];
+  })[status] || { label: status, fg: C.textSub, bg: C.borderSoft };
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, color: meta.fg,

@@ -37,7 +37,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
     parentId: null,
     notes: "",
     progress: 0,
-    status: "not_started",
+    status: "planned",
     dependencies: [],
     projectId: currentProjectId || projects[0]?.id,
     dates: [{ date: defaultDate(viewRange, 0), label: "" }],
@@ -57,7 +57,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
         parentId: task.parentId || null,
         notes: task.notes || "",
         progress: task.progress || 0,
-        status: task.status || "not_started",
+        status: task.status || "planned",
         dependencies: task.dependencies || [],
         projectId: currentProjectId || projects[0]?.id,
         dates: task.dates && task.dates.length > 0
@@ -80,7 +80,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
       endDate: form.type === "milestone" ? (form.startDate || null) : (form.endDate || null),
       parentId: form.parentId || null,
       progress: form.type === "milestone" ? undefined : (form.progress || 0),
-      status: form.type === "milestone" ? undefined : (form.status || "not_started"),
+      status: form.type === "milestone" ? undefined : (form.status || "planned"),
     };
     if (form.type === "milestone") {
       const validDates = form.dates ? form.dates.filter((d) => d.date) : [];
@@ -296,8 +296,8 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
                   value={form.status}
                   onChange={(e) => handleChange("status", e.target.value)}
                 >
-                  <option value="not_started">未着手</option>
-                  <option value="in_progress">進行中</option>
+                  <option value="planned">予定</option>
+                  <option value="in-progress">進行中</option>
                   <option value="done">完了</option>
                 </select>
               </label>
