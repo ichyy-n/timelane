@@ -230,15 +230,20 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
             display: 'flex', alignItems: 'center', gap: 4,
             background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 5, padding: 3,
           }}>
-            {['日', '週', '月', '四半期', '年'].map(u => (
-              <button key={u} style={{
-                background: u === '月' ? C.bg : 'transparent',
-                color: u === '月' ? C.text : C.textSub,
-                border: 'none', padding: '4px 10px', borderRadius: 3,
-                fontSize: 11, fontWeight: 500, cursor: 'pointer',
-                boxShadow: u === '月' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-              }}>{u}</button>
-            ))}
+            {GRANULARITIES.map(u => {
+              const active = u.v === granularity;
+              return (
+                <button key={u.v}
+                  onClick={() => setGranularity(u.v)}
+                  style={{
+                    background: active ? C.bg : 'transparent',
+                    color: active ? C.text : C.textSub,
+                    border: 'none', padding: '4px 10px', borderRadius: 3,
+                    fontSize: 11, fontWeight: active ? 600 : 500, cursor: 'pointer',
+                    boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  }}>{u.l}</button>
+              );
+            })}
           </div>
 
           <ButtonP C={C}>
