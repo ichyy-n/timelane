@@ -7,7 +7,7 @@ import {
   PRIORITY_META,
 } from '../data/mockdata.js';
 import TaskModal from './TaskModal.jsx';
-import { generateId } from '../data/sampleData.js';
+import { useTimelaneTasks } from '../hooks/useTimelaneTasks.js';
 
 // 案C: 情報密度高めのプロフェッショナル
 // - Asana/ClickUp系、サイドバー付き、詳細パネル、密度高め
@@ -15,7 +15,8 @@ import { generateId } from '../data/sampleData.js';
 // - ビジネス色強めでも洗練
 
 export default function TimelanePro({ dark = false, granularity = 'month' }) {
-  const [projects, setProjects] = React.useState(MOCK_PROJECTS);
+  const { projects, setProjects, addTask, editTask, deleteTask, saveJson, loadJson } =
+    useTimelaneTasks(MOCK_PROJECTS);
   const [hoverTaskId, setHoverTaskId] = React.useState(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState('t1');
   const [modalState, setModalState] = React.useState({ open: false, task: null, projectId: null });
@@ -56,7 +57,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
   const leftColWidth = 360;
 
   const toggleProject = (pid) => {
-    setProjects(projects.map(p => p.id === pid ? { ...p, collapsed: !p.collapsed } : p));
+    setProjects((prev) => prev.map(p => p.id === pid ? { ...p, collapsed: !p.collapsed } : p));
   };
 
   const handleAddTask = (projectId) => {
@@ -73,82 +74,26 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
 
   const handleModalSave = (formData) => {
     const targetProjectId = formData.projectId || modalState.projectId;
-    setProjects(prev =>
-      prev.map(proj => {
-        if (proj.id !== targetProjectId) {
-          if (modalState.task && proj.tasks.some(t => t.id === modalState.task.id)) {
-            return { ...proj, tasks: proj.tasks.filter(t => t.id !== modalState.task.id) };
-          }
-          return proj;
-        }
-        const { projectId: _pid, ...taskData } = formData;
-        if (modalState.task) {
-          const existsHere = proj.tasks.some(t => t.id === modalState.task.id);
-          if (existsHere) {
-            return { ...proj, tasks: proj.tasks.map(t =>
-              t.id === modalState.task.id ? { ...t, ...taskData } : t
-            )};
-          } else {
-            return { ...proj, tasks: [...proj.tasks, { ...modalState.task, ...taskData }] };
-          }
-        }
-        return { ...proj, tasks: [...proj.tasks, {
-          id: generateId(),
-          type: 'task',
-          parentId: null,
-          notes: '',
-          color: '#dbeafe',
-          progress: 0,
-          status: 'planned',
-          priority: 'med',
-          ...taskData,
-        }]};
-      })
-    );
+    if (modalState.task) {
+      editTask(modalState.task, modalState.projectId, formData);
+    } else {
+      const { projectId: _pid, ...taskData } = formData;
+      addTask({ priority: 'med', ...taskData }, targetProjectId);
+    }
     handleModalClose();
   };
 
   const handleSave = () => {
-    const data = {
-      version: '1.0',
-      savedAt: new Date().toISOString(),
-      projects,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'timelane-data.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    saveJson({ viewRange });
   };
 
   const handleLoad = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.version === '1.0' && data.projects) {
-          setProjects(data.projects);
-        } else {
-          alert('無効なファイル形式です。');
-        }
-      } catch {
-        alert('JSONファイルの読み込みに失敗しました。');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    loadJson(e, viewRange);
   };
 
   const handleDeleteTask = (taskId, projectId) => {
     if (!window.confirm('このタスクを削除しますか？')) return;
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
-      return { ...p, tasks: p.tasks.filter(t => t.id !== taskId) };
-    }));
+    deleteTask(taskId, projectId);
     setSelectedTaskId(null);
   };
 
