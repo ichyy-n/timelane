@@ -57,10 +57,24 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
   const rangeEnd = new Date(2027, 0, 31);
   const viewRange = { startYear: 2026, startMonth: 3, endYear: 2027, endMonth: 1 };
   const totalDays = dateUtil.diffDays(rangeStart, rangeEnd);
-  const axisUnits = granularity === 'week'
-    ? dateUtil.weeksBetween(rangeStart, rangeEnd)
-    : dateUtil.monthsBetween(rangeStart, rangeEnd);
-  const axisWidthPx = granularity === 'week' ? 48 : 80;
+  const axisUnits =
+      granularity === 'day'     ? dateUtil.daysBetween(rangeStart, rangeEnd)
+    : granularity === 'week'    ? dateUtil.weeksBetween(rangeStart, rangeEnd)
+    : granularity === 'quarter' ? dateUtil.quartersBetween(rangeStart, rangeEnd)
+    : granularity === 'year'    ? dateUtil.yearsBetween(rangeStart, rangeEnd)
+    :                              dateUtil.monthsBetween(rangeStart, rangeEnd);
+  const axisWidthPx =
+      granularity === 'day'     ? 22
+    : granularity === 'week'    ? 48
+    : granularity === 'quarter' ? 140
+    : granularity === 'year'    ? 220
+    :                              80;
+  const axisLabel = (d) =>
+      granularity === 'day'     ? `${d.getMonth() + 1}/${d.getDate()}`
+    : granularity === 'week'    ? `${d.getMonth() + 1}/${d.getDate()}`
+    : granularity === 'quarter' ? dateUtil.fmtQuarter(d)
+    : granularity === 'year'    ? dateUtil.fmtYear(d)
+    :                              dateUtil.fmtMonth(d);
   const timelineWidth = axisUnits.length * axisWidthPx;
   const todayPx = (dateUtil.diffDays(rangeStart, dateUtil.today()) / totalDays) * timelineWidth;
   const leftColWidth = 360;
@@ -118,16 +132,21 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
   const allTasksFlat = projects.flatMap(p => p.tasks.map(t => ({ ...t, projectId: p.id })));
   const selectedTask = allTasks.find(t => t.id === selectedTaskId);
 
-  // ワークロード（月別タスク数）
-  const workload = axisUnits.map((d) => {
-    const monthStart = d;
-    const monthEnd = granularity === 'week'
-      ? dateUtil.addDays(d, 7)
-      : new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  // ワークロード（期間別タスク数）
+  const workload = axisUnits.map((d, i) => {
+    const unitStart = d;
+    const next = axisUnits[i + 1];
+    const unitEnd =
+        next ? next
+      : granularity === 'day'     ? dateUtil.addDays(d, 1)
+      : granularity === 'week'    ? dateUtil.addDays(d, 7)
+      : granularity === 'quarter' ? new Date(d.getFullYear(), d.getMonth() + 3, 1)
+      : granularity === 'year'    ? new Date(d.getFullYear() + 1, 0, 1)
+      :                              new Date(d.getFullYear(), d.getMonth() + 1, 1);
     const count = allTasks.filter(t => {
       const ts = dateUtil.parse(t.startDate);
       const te = dateUtil.parse(t.endDate);
-      return ts < monthEnd && te >= monthStart;
+      return ts < unitEnd && te >= unitStart;
     }).length;
     return count;
   });
@@ -296,9 +315,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
                       fontSize: 10, fontWeight: 600, color: C.textSub,
                       letterSpacing: 0.3,
                     }}>
-                      {granularity === 'week'
-                        ? `${d.getMonth() + 1}/${d.getDate()}`
-                        : dateUtil.fmtMonth(d)}
+                      {axisLabel(d)}
                     </div>
                   ))}
                 </div>
