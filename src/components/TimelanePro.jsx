@@ -28,8 +28,12 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
   const [hoverTaskId, setHoverTaskId] = React.useState(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState('t1');
   const [granularity, setGranularity] = React.useState(initialGranularity);
+  const [rangeStart, setRangeStart] = React.useState(new Date(2026, 2, 1));
+  const [rangeEnd, setRangeEnd] = React.useState(new Date(2027, 0, 31));
   const [modalState, setModalState] = React.useState({ open: false, task: null, projectId: null });
   const fileInputRef = useRef(null);
+
+  const toISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   const C = dark ? {
     bg: '#0f1419', panel: '#161b22', panelAlt: '#1a2029',
@@ -53,16 +57,16 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
     hover: '#f6f8fa',
   };
 
-  const rangeStart = new Date(2026, 2, 1);
-  const rangeEnd = new Date(2027, 0, 31);
+  const rangeStartSafe = rangeStart < rangeEnd ? rangeStart : rangeEnd;
+  const rangeEndSafe = rangeStart < rangeEnd ? rangeEnd : rangeStart;
   const viewRange = { startYear: 2026, startMonth: 3, endYear: 2027, endMonth: 1 };
-  const totalDays = dateUtil.diffDays(rangeStart, rangeEnd);
+  const totalDays = Math.max(1, dateUtil.diffDays(rangeStartSafe, rangeEndSafe));
   const axisUnits =
-      granularity === 'day'     ? dateUtil.daysBetween(rangeStart, rangeEnd)
-    : granularity === 'week'    ? dateUtil.weeksBetween(rangeStart, rangeEnd)
-    : granularity === 'quarter' ? dateUtil.quartersBetween(rangeStart, rangeEnd)
-    : granularity === 'year'    ? dateUtil.yearsBetween(rangeStart, rangeEnd)
-    :                              dateUtil.monthsBetween(rangeStart, rangeEnd);
+      granularity === 'day'     ? dateUtil.daysBetween(rangeStartSafe, rangeEndSafe)
+    : granularity === 'week'    ? dateUtil.weeksBetween(rangeStartSafe, rangeEndSafe)
+    : granularity === 'quarter' ? dateUtil.quartersBetween(rangeStartSafe, rangeEndSafe)
+    : granularity === 'year'    ? dateUtil.yearsBetween(rangeStartSafe, rangeEndSafe)
+    :                              dateUtil.monthsBetween(rangeStartSafe, rangeEndSafe);
   const axisWidthPx =
       granularity === 'day'     ? 22
     : granularity === 'week'    ? 48
@@ -76,7 +80,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
     : granularity === 'year'    ? dateUtil.fmtYear(d)
     :                              dateUtil.fmtMonth(d);
   const timelineWidth = axisUnits.length * axisWidthPx;
-  const todayPx = (dateUtil.diffDays(rangeStart, dateUtil.today()) / totalDays) * timelineWidth;
+  const todayPx = (dateUtil.diffDays(rangeStartSafe, dateUtil.today()) / totalDays) * timelineWidth;
   const leftColWidth = 360;
 
   const toggleProject = (pid) => {
@@ -123,7 +127,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
   const barPositionFor = (task) => {
     const ts = dateUtil.parse(task.startDate);
     const te = dateUtil.parse(task.endDate);
-    const left = (dateUtil.diffDays(rangeStart, ts) / totalDays) * timelineWidth;
+    const left = (dateUtil.diffDays(rangeStartSafe, ts) / totalDays) * timelineWidth;
     const width = Math.max(4, (dateUtil.diffDays(ts, te) / totalDays) * timelineWidth);
     return { left, width };
   };
@@ -419,7 +423,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
                         {projStarts.length > 0 && (() => {
                           const minS = new Date(Math.min(...projStarts));
                           const maxE = new Date(Math.max(...projEnds));
-                          const left = (dateUtil.diffDays(rangeStart, minS) / totalDays) * timelineWidth;
+                          const left = (dateUtil.diffDays(rangeStartSafe, minS) / totalDays) * timelineWidth;
                           const width = (dateUtil.diffDays(minS, maxE) / totalDays) * timelineWidth;
                           return (
                             <div style={{
