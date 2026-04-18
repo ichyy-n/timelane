@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo } from "react";
+import { TODAY_LINE_COLOR, ARROW_COLORS, TASK_NAME_COLORS } from "./theme";
 
 const CELL_WIDTH = 80;
 const ROW_HEIGHT = 32;
@@ -331,7 +332,7 @@ export default function GanttChart({
     top: 0,
     bottom: 0,
     width: 2,
-    background: '#ef4444',
+    background: TODAY_LINE_COLOR,
     pointerEvents: 'none',
     zIndex: 10,
   };
@@ -392,17 +393,17 @@ export default function GanttChart({
           <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
             <defs>
               <marker id="arrow-normal" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill="#d9890b" />
+                <path d="M0,0 L0,6 L8,3 z" fill={ARROW_COLORS.default} />
               </marker>
               <marker id="arrow-collision" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill="#eb5757" />
+                <path d="M0,0 L0,6 L8,3 z" fill={ARROW_COLORS.collision} />
               </marker>
             </defs>
             {arrowPaths.map(({ key, x1, y1, x2, y2, hasCollision }) => {
               const dx = Math.abs(x2 - x1);
               const cpOffset = Math.max(dx * 0.4, 20);
               const d = `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`;
-              const color = hasCollision ? '#eb5757' : '#d9890b';
+              const color = hasCollision ? ARROW_COLORS.collision : ARROW_COLORS.default;
               const markerId = hasCollision ? 'arrow-collision' : 'arrow-normal';
               return (
                 <path key={key} d={d} stroke={color} strokeWidth="1.5" fill="none" markerEnd={`url(#${markerId})`} />
@@ -490,7 +491,7 @@ export default function GanttChart({
               );
             }
 
-            const monoColor = !colorMode ? (darkMode ? "#cccccc" : "#333333") : undefined;
+            const monoColor = !colorMode ? (darkMode ? TASK_NAME_COLORS.dark : TASK_NAME_COLORS.light) : undefined;
 
             return (
               <div
@@ -535,7 +536,7 @@ export default function GanttChart({
                     style={{
                       left: sLeft,
                       width: Math.max(sWidth, 20),
-                      backgroundColor: colorMode ? task.color : (darkMode ? "#cccccc" : "#333333"),
+                      backgroundColor: colorMode ? task.color : (darkMode ? TASK_NAME_COLORS.dark : TASK_NAME_COLORS.light),
                     }}
                     onClick={() => onTaskClick(task, projectId)}
                     title={task.name}
@@ -574,7 +575,7 @@ export default function GanttChart({
                 style={{
                   left: left,
                   width: Math.max(width, 20),
-                  backgroundColor: colorMode ? task.color : (darkMode ? "#cccccc" : "#333333"),
+                  backgroundColor: colorMode ? task.color : (darkMode ? TASK_NAME_COLORS.dark : TASK_NAME_COLORS.light),
                 }}
                 onClick={() => onTaskClick(task, projectId)}
                 title={task.name}

@@ -3,8 +3,9 @@ import Toolbar from "./components/Toolbar";
 import TaskList from "./components/TaskList";
 import GanttChart from "./components/GanttChart";
 import TaskModal from "./components/TaskModal";
-import { generateId, generateProjectId } from "./data/sampleData";
+import { generateProjectId } from "./data/sampleData";
 import { exportToExcel } from "./utils/exportExcel";
+import { useTimelaneTasks } from "./hooks/useTimelaneTasks";
 import "./App.css";
 
 function getMonthLabels(startYear, startMonth, endYear, endMonth) {
@@ -20,39 +21,6 @@ function getMonthLabels(startYear, startMonth, endYear, endMonth) {
     }
   }
   return labels;
-}
-
-// Convert legacy startMonth/endMonth (offset-based) to startDate/endDate (YYYY-MM-DD)
-function convertLegacyTask(task, viewRange) {
-  if (task.startDate) return task;
-  let y = viewRange.startYear;
-  let m = viewRange.startMonth + task.startMonth;
-  while (m > 12) { m -= 12; y++; }
-  while (m < 1) { m += 12; y--; }
-  const startDate = `${y}-${String(m).padStart(2, "0")}-01`;
-
-  let ey = viewRange.startYear;
-  let em = viewRange.startMonth + (task.endMonth ?? task.startMonth);
-  while (em > 12) { em -= 12; ey++; }
-  while (em < 1) { em += 12; ey--; }
-  const lastDay = new Date(ey, em, 0).getDate();
-  const endDate = `${ey}-${String(em).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-  const converted = { ...task, startDate, endDate };
-  delete converted.startMonth;
-  delete converted.endMonth;
-
-  // Convert milestone dates from "YYYY-MM" to "YYYY-MM-15"
-  if (converted.dates) {
-    converted.dates = converted.dates.map((d) => {
-      if (d.date && d.date.length === 7) {
-        return { ...d, date: d.date + "-15" };
-      }
-      return d;
-    });
-  }
-
-  return converted;
 }
 
 // Build tree-ordered flat list
@@ -114,16 +82,34 @@ function computeDefaultViewRange() {
 const MAX_HISTORY = 50;
 
 function App() {
-  const [projects, setProjects] = useState(() => []);
+  // History bookkeeping must be declared before the hook so its callback ref is stable.
+  const historyRef = useRef({ stack: [], index: -1 });
+  const isUndoRedoRef = useRef(false);
+
+  const recordHistory = useCallback((next) => {
+    if (isUndoRedoRef.current) return;
+    const h = historyRef.current;
+    const newStack = h.stack.slice(0, h.index + 1);
+    newStack.push(next);
+    if (newStack.length > MAX_HISTORY) newStack.shift();
+    historyRef.current = { stack: newStack, index: newStack.length - 1 };
+  }, []);
+
+  const {
+    projects,
+    setProjects,
+    addTask,
+    editTask,
+    deleteTask,
+    saveJson,
+    loadJson,
+  } = useTimelaneTasks([], { onChange: recordHistory });
+
   const [modalState, setModalState] = useState({ open: false, task: null, projectId: null });
   const [collapsedIds, setCollapsedIds] = useState(new Set());
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
   const [colorMode, setColorMode] = useState(true);
   const [viewRange, setViewRange] = useState(computeDefaultViewRange);
-
-  // A2: Undo/Redo - use refs for history to avoid async state coordination issues
-  const historyRef = useRef({ stack: [], index: -1 });
-  const isUndoRedoRef = useRef(false);
 
   // B2: Scroll sync refs
   const leftPanelRef = useRef(null);
@@ -166,20 +152,9 @@ function App() {
     historyRef.current = { stack: [projects], index: 0 };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A2: setProjects wrapper that records history
-  const setProjectsWithHistory = useCallback((updater) => {
-    setProjects((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      if (!isUndoRedoRef.current) {
-        const h = historyRef.current;
-        const newStack = h.stack.slice(0, h.index + 1);
-        newStack.push(next);
-        if (newStack.length > MAX_HISTORY) newStack.shift();
-        historyRef.current = { stack: newStack, index: newStack.length - 1 };
-      }
-      return next;
-    });
-  }, []);
+  // setProjects already routes through recordHistory via the hook's onChange.
+  // Keep the alias so existing call sites stay legible.
+  const setProjectsWithHistory = setProjects;
 
   // A2: Undo/Redo keyboard handler
   useEffect(() => {
@@ -208,7 +183,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [setProjects]);
 
   // A1: Electron auto-save - load on mount
   useEffect(() => {
@@ -225,7 +200,7 @@ function App() {
         }, 0);
       }
     }).catch(() => { /* not in Electron, ignore */ });
-  }, []);
+  }, [setProjects]);
 
   // A1: Debounced auto-save on change
   useEffect(() => {
@@ -461,37 +436,12 @@ function App() {
 
   const handleModalSave = (formData) => {
     const targetProjectId = formData.projectId || modalState.projectId;
-    setProjectsWithHistory((prev) =>
-      prev.map((proj) => {
-        if (proj.id !== targetProjectId) {
-          if (modalState.task && proj.tasks.some((t) => t.id === modalState.task.id)) {
-            return { ...proj, tasks: proj.tasks.filter((t) => t.id !== modalState.task.id) };
-          }
-          return proj;
-        }
-        const { projectId: _pid, ...taskData } = formData;
-        if (modalState.task) {
-          const existsHere = proj.tasks.some((t) => t.id === modalState.task.id);
-          if (existsHere) {
-            return {
-              ...proj,
-              tasks: proj.tasks.map((t) =>
-                t.id === modalState.task.id ? { ...t, ...taskData } : t
-              ),
-            };
-          } else {
-            return {
-              ...proj,
-              tasks: [...proj.tasks, { ...modalState.task, ...taskData }],
-            };
-          }
-        }
-        return {
-          ...proj,
-          tasks: [...proj.tasks, { id: generateId(), ...taskData }],
-        };
-      })
-    );
+    if (modalState.task) {
+      editTask(modalState.task, modalState.projectId, formData);
+    } else {
+      const { projectId: _pid, ...taskData } = formData;
+      addTask(taskData, targetProjectId);
+    }
     handleModalClose();
   };
 
@@ -502,14 +452,7 @@ function App() {
       ? "配下のタスクも全て削除されます。削除しますか？"
       : "タスクを削除しますか？";
     if (!window.confirm(message)) return;
-    setProjectsWithHistory((prev) =>
-      prev.map((p) => {
-        if (p.id !== projectId) return p;
-        const descs = getDescendantIds(p.tasks, taskId);
-        descs.add(taskId);
-        return { ...p, tasks: p.tasks.filter((t) => !descs.has(t.id)) };
-      })
-    );
+    deleteTask(taskId, projectId);
   };
 
   const handleTaskUpdate = useCallback((taskId, updates, projectId) => {
@@ -657,54 +600,17 @@ function App() {
   }, [setProjectsWithHistory]);
 
   const handleSave = () => {
-    const data = { version: "2.0", projects, viewRange, colorMode, darkMode };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "gantt-data.json";
-    a.click();
-    URL.revokeObjectURL(url);
+    saveJson({ viewRange, colorMode, darkMode });
   };
 
   const handleLoad = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.version === "2.0" && data.projects) {
-          const vr = data.viewRange || viewRange;
-          const convertedProjects = data.projects.map((proj) => ({
-            ...proj,
-            tasks: proj.tasks.map((t) => convertLegacyTask(t, vr)),
-          }));
-          setProjectsWithHistory(convertedProjects);
-          if (data.viewRange) setViewRange(data.viewRange);
-          if (data.colorMode !== undefined) setColorMode(data.colorMode);
-          if (data.darkMode !== undefined) setDarkMode(data.darkMode);
-        } else if (data.version && data.project && data.tasks) {
-          const vr = data.viewRange || viewRange;
-          setProjectsWithHistory([
-            {
-              id: generateProjectId(),
-              name: data.project.name || "Imported Project",
-              collapsed: false,
-              tasks: data.tasks.map((t) => convertLegacyTask(t, vr)),
-            },
-          ]);
-        } else {
-          alert("Invalid project file format.");
-        }
-      } catch {
-        alert("Failed to parse JSON file.");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+    loadJson(e, viewRange, {
+      onMeta: ({ viewRange: vr, colorMode: cm, darkMode: dm }) => {
+        if (vr) setViewRange(vr);
+        if (cm !== undefined) setColorMode(cm);
+        if (dm !== undefined) setDarkMode(dm);
+      },
+    });
   };
 
   // Flatten all tasks for the modal's parent options
