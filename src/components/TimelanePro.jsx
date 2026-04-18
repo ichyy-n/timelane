@@ -35,6 +35,41 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
 
   const toISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+  const panRange = (dir) => {
+    const span = dateUtil.diffDays(rangeStart, rangeEnd);
+    const step = Math.max(1, Math.round(span / 2));
+    setRangeStart(dateUtil.addDays(rangeStart, dir * step));
+    setRangeEnd(dateUtil.addDays(rangeEnd, dir * step));
+  };
+  const recenterToToday = () => {
+    const t = dateUtil.today();
+    const span = dateUtil.diffDays(rangeStart, rangeEnd);
+    const half = Math.floor(span / 2);
+    setRangeStart(dateUtil.addDays(t, -half));
+    setRangeEnd(dateUtil.addDays(t, span - half));
+  };
+  const applyPreset = (preset) => {
+    const t = dateUtil.today();
+    if (preset === 'thisMonth') {
+      setRangeStart(new Date(t.getFullYear(), t.getMonth(), 1));
+      setRangeEnd(new Date(t.getFullYear(), t.getMonth() + 1, 0));
+      setGranularity('month');
+    } else if (preset === 'thisQuarter') {
+      const qm = Math.floor(t.getMonth() / 3) * 3;
+      setRangeStart(new Date(t.getFullYear(), qm, 1));
+      setRangeEnd(new Date(t.getFullYear(), qm + 3, 0));
+      setGranularity('quarter');
+    } else if (preset === 'thisYear') {
+      setRangeStart(new Date(t.getFullYear(), 0, 1));
+      setRangeEnd(new Date(t.getFullYear(), 11, 31));
+      setGranularity('year');
+    } else if (preset === 'all') {
+      setRangeStart(new Date(2026, 2, 1));
+      setRangeEnd(new Date(2027, 0, 31));
+      setGranularity('month');
+    }
+  };
+
   const C = dark ? {
     bg: '#0f1419', panel: '#161b22', panelAlt: '#1a2029',
     sidebar: '#0a0e13',
