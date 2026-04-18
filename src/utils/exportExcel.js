@@ -149,7 +149,7 @@ export async function exportToExcel(projects, viewRange) {
 
       const row = sheet.addRow([taskName, assignee, location, startDate, endDate, notes, ...monthCells]);
 
-      row.eachCell((cell, colNumber) => {
+      row.eachCell((cell) => {
         cell.border = {
           top: { style: "thin" },
           bottom: { style: "thin" },

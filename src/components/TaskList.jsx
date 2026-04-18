@@ -12,7 +12,6 @@ export default function TaskList({
   onDeleteProject,
   onProjectNameChange,
   onReorder,
-  colorMode = true,
   collapsedGroups = new Set(),
   onToggleGroupCollapse,
 }) {
@@ -131,7 +130,6 @@ export default function TaskList({
         const depth = row.depth;
         const hasKids = row.hasChildren;
         const isCollapsed = collapsedIds.has(task.id);
-        const isMilestone = task.type === "milestone";
         const projectId = row.projectId;
 
         return (

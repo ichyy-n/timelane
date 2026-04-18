@@ -16,25 +16,6 @@ function getDescendantIds(tasks, taskId) {
   return ids;
 }
 
-// Get all IDs reachable via dependency chains (to prevent circular dependencies)
-function getDependencyChainIds(tasks, taskId) {
-  const ids = new Set();
-  const taskMap = new Map();
-  tasks.forEach((t) => taskMap.set(t.id, t));
-  function walk(id) {
-    const t = taskMap.get(id);
-    if (!t || !t.dependencies) return;
-    for (const depId of t.dependencies) {
-      if (!ids.has(depId)) {
-        ids.add(depId);
-        walk(depId);
-      }
-    }
-  }
-  walk(taskId);
-  return ids;
-}
-
 // Format date for input[type="date"] default
 function defaultDate(viewRange, offsetMonths) {
   let y = viewRange.startYear;
@@ -64,6 +45,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
 
   useEffect(() => {
     if (task) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional prop→state sync when task prop changes
       setForm({
         name: task.name,
         location: task.location,
@@ -326,8 +308,7 @@ export default function TaskModal({ task, projects, currentProjectId, onSave, on
           {form.type !== 'milestone' && (() => {
             // Filter to same project, exclude self, milestones, and circular deps
             const sameProjectTasks = (allTasks || []).filter(t => t.projectId === form.projectId);
-            const circularIds = task ? getDependencyChainIds(sameProjectTasks, task.id) : new Set();
-            // Also find tasks that depend on this task (would create reverse cycle)
+            // Find tasks that depend on this task (would create reverse cycle)
             const dependsOnMe = new Set();
             if (task) {
               const findReverseDeps = (id) => {

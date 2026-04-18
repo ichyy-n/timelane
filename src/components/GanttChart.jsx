@@ -176,7 +176,7 @@ export default function GanttChart({
   viewMode = "month",  // C2: 'month' | 'week' | 'quarter'
 }) {
   const chartRef = useRef(null);
-  const [dragging, setDragging] = useState(null);
+  const [, setDragging] = useState(null);
 
   // C2: Week labels for week view
   const weekLabels = useMemo(() => {

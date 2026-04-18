@@ -223,7 +223,6 @@ function App() {
   const handleScrollToToday = useCallback(() => {
     if (!rightPanelRef.current) return;
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
     const CELL_WIDTH = 80;
 
     let px;

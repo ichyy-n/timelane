@@ -19,7 +19,6 @@ export default function Toolbar({
   onScrollToToday,
   sortMode,
   onSortModeChange,
-  showFilterPanel,
   onToggleFilterPanel,
   isFilterActive,
   groupBy,
