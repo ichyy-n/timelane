@@ -5,8 +5,8 @@
   --bg-surface: #efeeeb;
   --bg-hover: #ebebea;
   --text-primary: #37352f;
-  --text-secondary: #787774;
-  --text-muted: #b4b0a8;
+  --text-secondary: #37352f;
+  --text-muted: #55534e;
   --border: #e3e2e0;
   --accent: #2eaadc;
   --accent-hover: #2496c4;
@@ -56,12 +56,24 @@ body {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   box-shadow: none;
-  gap: 12px;
+  gap: 6px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+.toolbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .toolbar-range {
@@ -84,7 +96,7 @@ body {
 
 .toolbar-range select {
   padding: 4px 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 4px;
   background: transparent;
   color: var(--text-primary);
@@ -200,13 +212,13 @@ body {
 .view-mode-select {
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   appearance: auto;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .view-mode-select:hover {
@@ -214,7 +226,7 @@ body {
 }
 
 .view-mode-select:focus {
-  border-color: var(--border);
+  border-color: var(--text-muted);
   outline: none;
 }
 

@@ -90,17 +90,21 @@ export default function Toolbar({
           ))}
         </select>
       </div>
+      <div className="toolbar-separator" />
       <button className="btn-add-task" onClick={onAddTask}>+ タスク追加</button>
-      <button className="btn-today" onClick={onScrollToToday}>今日</button>
-      <select
-        className="view-mode-select"
-        value={viewMode}
-        onChange={(e) => onViewModeChange(e.target.value)}
-      >
-        <option value="week">週</option>
-        <option value="month">月</option>
-        <option value="quarter">四半期</option>
-      </select>
+      <div className="toolbar-separator" />
+      <div className="toolbar-nav">
+        <button className="btn-today" onClick={onScrollToToday} title="今日の日付にスクロール">📅 今日</button>
+        <select
+          className="view-mode-select"
+          value={viewMode}
+          onChange={(e) => onViewModeChange(e.target.value)}
+        >
+          <option value="week">週表示</option>
+          <option value="month">月表示</option>
+          <option value="quarter">四半期表示</option>
+        </select>
+      </div>
       <div className="hamburger-wrapper" ref={menuRef}>
         <button
           className="hamburger-btn"
@@ -130,12 +134,6 @@ export default function Toolbar({
                 {groupBy === opt.value ? "✓ " : "　"}{opt.label}
               </button>
             ))}
-            <button onClick={() => handleMenuAction(() => onColorModeChange(!colorMode))}>
-              {colorMode ? "🎨 カラー → モノクロ" : "■ モノクロ → カラー"}
-            </button>
-            <button onClick={() => handleMenuAction(() => onDarkModeChange(!darkMode))}>
-              {darkMode ? "☀️ ライトモードに切替" : "🌙 ダークモードに切替"}
-            </button>
             <div className="hamburger-menu-divider" />
             <div className="hamburger-menu-label">並び替え</div>
             {[
@@ -152,6 +150,14 @@ export default function Toolbar({
                 {sortMode === opt.value ? "✓ " : "　"}{opt.label}
               </button>
             ))}
+            <div className="hamburger-menu-divider" />
+            <div className="hamburger-menu-label">表示設定</div>
+            <button onClick={() => handleMenuAction(() => onColorModeChange(!colorMode))}>
+              {colorMode ? "🎨 カラー → モノクロ" : "■ モノクロ → カラー"}
+            </button>
+            <button onClick={() => handleMenuAction(() => onDarkModeChange(!darkMode))}>
+              {darkMode ? "☀️ ライトモードに切替" : "🌙 ダークモードに切替"}
+            </button>
             <div className="hamburger-menu-divider" />
             <button onClick={() => handleMenuAction(onExportExcel)}>Excel出力</button>
             <button onClick={() => handleMenuAction(onPrintPdf)}>PDF出力</button>
