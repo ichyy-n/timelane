@@ -1,6 +1,26 @@
 import { useState, useCallback } from 'react';
 import { generateId } from '../data/sampleData';
 
+// Collect all descendant task IDs of a given parent (used by deleteTask to drop subtrees).
+function getDescendantIds(tasks, parentId) {
+  const ids = new Set();
+  const childMap = new Map();
+  tasks.forEach((t) => {
+    const pid = t.parentId || '__root__';
+    if (!childMap.has(pid)) childMap.set(pid, []);
+    childMap.get(pid).push(t);
+  });
+  function walk(pid) {
+    const children = childMap.get(pid) || [];
+    for (const c of children) {
+      ids.add(c.id);
+      walk(c.id);
+    }
+  }
+  walk(parentId);
+  return ids;
+}
+
 // useTimelaneTasks: extracts tasks/projects state + CRUD + JSON I/O from App.jsx.
 // onChange is invoked AFTER every state mutation so the host (App.jsx) can record
 // undo/redo history. The host keeps history management; this hook stays presentation-free.
@@ -66,5 +86,20 @@ export function useTimelaneTasks(initialProjects = [], { onChange } = {}) {
     [setProjects]
   );
 
-  return { projects, setProjects, addTask, editTask };
+  // Pure delete (no confirm dialog — host owns UI). Removes the task and all descendants.
+  const deleteTask = useCallback(
+    (taskId, projectId) => {
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== projectId) return p;
+          const descs = getDescendantIds(p.tasks, taskId);
+          descs.add(taskId);
+          return { ...p, tasks: p.tasks.filter((t) => !descs.has(t.id)) };
+        })
+      );
+    },
+    [setProjects]
+  );
+
+  return { projects, setProjects, addTask, editTask, deleteTask };
 }
