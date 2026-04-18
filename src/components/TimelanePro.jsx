@@ -14,11 +14,20 @@ import { useTimelaneTasks } from '../hooks/useTimelaneTasks.js';
 // - 進捗バー + スパークライン + ワークロードサマリ
 // - ビジネス色強めでも洗練
 
-export default function TimelanePro({ dark = false, granularity = 'month' }) {
+const GRANULARITIES = [
+  { v: 'day',     l: '日' },
+  { v: 'week',    l: '週' },
+  { v: 'month',   l: '月' },
+  { v: 'quarter', l: '四半期' },
+  { v: 'year',    l: '年' },
+];
+
+export default function TimelanePro({ dark = false, granularity: initialGranularity = 'month' }) {
   const { projects, setProjects, addTask, editTask, deleteTask, saveJson, loadJson } =
     useTimelaneTasks(MOCK_PROJECTS);
   const [hoverTaskId, setHoverTaskId] = React.useState(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState('t1');
+  const [granularity, setGranularity] = React.useState(initialGranularity);
   const [modalState, setModalState] = React.useState({ open: false, task: null, projectId: null });
   const fileInputRef = useRef(null);
 
