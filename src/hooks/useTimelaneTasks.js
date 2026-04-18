@@ -33,5 +33,38 @@ export function useTimelaneTasks(initialProjects = [], { onChange } = {}) {
     [setProjects]
   );
 
-  return { projects, setProjects, addTask };
+  // Update an existing task. If formData.projectId differs from originalProjectId,
+  // the task is moved across projects (removed from origin, appended to target).
+  const editTask = useCallback(
+    (originalTask, originalProjectId, formData) => {
+      const targetProjectId = formData.projectId || originalProjectId;
+      setProjects((prev) =>
+        prev.map((proj) => {
+          if (proj.id !== targetProjectId) {
+            if (originalTask && proj.tasks.some((t) => t.id === originalTask.id)) {
+              return { ...proj, tasks: proj.tasks.filter((t) => t.id !== originalTask.id) };
+            }
+            return proj;
+          }
+          const { projectId: _pid, ...taskData } = formData;
+          const existsHere = proj.tasks.some((t) => t.id === originalTask.id);
+          if (existsHere) {
+            return {
+              ...proj,
+              tasks: proj.tasks.map((t) =>
+                t.id === originalTask.id ? { ...t, ...taskData } : t
+              ),
+            };
+          }
+          return {
+            ...proj,
+            tasks: [...proj.tasks, { ...originalTask, ...taskData }],
+          };
+        })
+      );
+    },
+    [setProjects]
+  );
+
+  return { projects, setProjects, addTask, editTask };
 }
