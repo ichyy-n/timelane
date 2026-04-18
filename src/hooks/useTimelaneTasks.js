@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { generateId } from '../data/sampleData';
 
 // useTimelaneTasks: extracts tasks/projects state + CRUD + JSON I/O from App.jsx.
 // onChange is invoked AFTER every state mutation so the host (App.jsx) can record
@@ -17,5 +18,20 @@ export function useTimelaneTasks(initialProjects = [], { onChange } = {}) {
     [onChange]
   );
 
-  return { projects, setProjects };
+  // Append a new task to the given project. taskData may carry a projectId field
+  // that we strip — projectId is supplied separately as the destination project.
+  const addTask = useCallback(
+    (taskData, projectId) => {
+      setProjects((prev) =>
+        prev.map((proj) => {
+          if (proj.id !== projectId) return proj;
+          const { projectId: _pid, ...rest } = taskData;
+          return { ...proj, tasks: [...proj.tasks, { id: generateId(), ...rest }] };
+        })
+      );
+    },
+    [setProjects]
+  );
+
+  return { projects, setProjects, addTask };
 }
