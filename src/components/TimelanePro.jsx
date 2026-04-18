@@ -53,20 +53,16 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
     if (preset === 'thisMonth') {
       setRangeStart(new Date(t.getFullYear(), t.getMonth(), 1));
       setRangeEnd(new Date(t.getFullYear(), t.getMonth() + 1, 0));
-      setGranularity('month');
     } else if (preset === 'thisQuarter') {
       const qm = Math.floor(t.getMonth() / 3) * 3;
       setRangeStart(new Date(t.getFullYear(), qm, 1));
       setRangeEnd(new Date(t.getFullYear(), qm + 3, 0));
-      setGranularity('quarter');
     } else if (preset === 'thisYear') {
       setRangeStart(new Date(t.getFullYear(), 0, 1));
       setRangeEnd(new Date(t.getFullYear(), 11, 31));
-      setGranularity('year');
     } else if (preset === 'all') {
       setRangeStart(new Date(2026, 2, 1));
       setRangeEnd(new Date(2027, 0, 31));
-      setGranularity('month');
     }
   };
 
