@@ -1,10 +1,5 @@
 import { useState } from "react";
-
-const STATUS_COLORS = {
-  not_started: "#b4b0a8",
-  in_progress: "#2eaadc",
-  done: "#4dab9a",
-};
+import { STATUS_COLORS } from "./theme";
 
 export default function TaskList({
   displayRows,
