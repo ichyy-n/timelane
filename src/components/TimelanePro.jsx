@@ -55,8 +55,8 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
   };
 
   const barPositionFor = (task) => {
-    const ts = dateUtil.parse(task.start);
-    const te = dateUtil.parse(task.end);
+    const ts = dateUtil.parse(task.startDate);
+    const te = dateUtil.parse(task.endDate);
     const left = (dateUtil.diffDays(rangeStart, ts) / totalDays) * timelineWidth;
     const width = Math.max(4, (dateUtil.diffDays(ts, te) / totalDays) * timelineWidth);
     return { left, width };
@@ -72,8 +72,8 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
       ? dateUtil.addDays(d, 7)
       : new Date(d.getFullYear(), d.getMonth() + 1, 1);
     const count = allTasks.filter(t => {
-      const ts = dateUtil.parse(t.start);
-      const te = dateUtil.parse(t.end);
+      const ts = dateUtil.parse(t.startDate);
+      const te = dateUtil.parse(t.endDate);
       return ts < monthEnd && te >= monthStart;
     }).length;
     return count;
@@ -288,8 +288,8 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
 
               {/* プロジェクト + タスク */}
               {projects.map((project) => {
-                const projStarts = project.tasks.map(t => dateUtil.parse(t.start));
-                const projEnds = project.tasks.map(t => dateUtil.parse(t.end));
+                const projStarts = project.tasks.map(t => dateUtil.parse(t.startDate));
+                const projEnds = project.tasks.map(t => dateUtil.parse(t.endDate));
                 const projAvg = project.tasks.length > 0
                   ? Math.round(project.tasks.reduce((s, t) => s + t.progress, 0) / project.tasks.length)
                   : 0;
@@ -464,14 +464,14 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
                                   fontSize: 9, color: C.textFaint,
                                   fontVariantNumeric: 'tabular-nums',
                                 }}>
-                                  {task.start.slice(5).replace('-', '/')}
+                                  {task.startDate.slice(5).replace('-', '/')}
                                 </div>
                                 <div style={{
                                   position: 'absolute', left: left + width - 32, top: 34,
                                   fontSize: 9, color: C.textFaint,
                                   fontVariantNumeric: 'tabular-nums', textAlign: 'right',
                                 }}>
-                                  {task.end.slice(5).replace('-', '/')}
+                                  {task.endDate.slice(5).replace('-', '/')}
                                 </div>
                               </>
                             )}
@@ -547,10 +547,10 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
               </DetailRowP>
               <DetailRowP C={C} label="場所">{selectedTask.location}</DetailRowP>
               <DetailRowP C={C} label="期間">
-                {selectedTask.start.replace(/-/g, '/')} 〜 {selectedTask.end.replace(/-/g, '/')}
+                {selectedTask.startDate.replace(/-/g, '/')} 〜 {selectedTask.endDate.replace(/-/g, '/')}
               </DetailRowP>
               <DetailRowP C={C} label="日数">
-                {dateUtil.diffDays(dateUtil.parse(selectedTask.start), dateUtil.parse(selectedTask.end))}日間
+                {dateUtil.diffDays(dateUtil.parse(selectedTask.startDate), dateUtil.parse(selectedTask.endDate))}日間
               </DetailRowP>
               <DetailRowP C={C} label="優先度">
                 <span style={{

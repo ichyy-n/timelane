@@ -7,11 +7,11 @@ export const MOCK_PROJECTS = [
     name: '大阪石油化学',
     collapsed: false,
     tasks: [
-      { id: 't1',  name: 'インターロック改修',       assignee: '田中 健一', location: 'A棟 制御室',     start: '2026-07-15', end: '2026-10-05', progress: 65, status: 'in-progress', priority: 'high' },
-      { id: 't2',  name: '配管耐圧試験',            assignee: '佐藤 美咲', location: 'A棟 第二配管室', start: '2026-04-01', end: '2026-05-20', progress: 100, status: 'done', priority: 'med' },
-      { id: 't3',  name: '安全弁点検',              assignee: '鈴木 大輔', location: 'B棟',            start: '2026-05-10', end: '2026-06-25', progress: 88, status: 'in-progress', priority: 'med' },
-      { id: 't4',  name: '計装盤更新',              assignee: '山田 花子', location: 'A棟 制御室',     start: '2026-08-01', end: '2026-11-15', progress: 20, status: 'in-progress', priority: 'high' },
-      { id: 't5',  name: '触媒交換',                assignee: '伊藤 翔',   location: 'C棟 反応器',     start: '2026-09-10', end: '2026-10-20', progress: 0,  status: 'planned', priority: 'high' },
+      { id: 't1',  name: 'インターロック改修',       assignee: '田中 健一', location: 'A棟 制御室',     startDate: '2026-07-15', endDate: '2026-10-05', progress: 65, status: 'in-progress', priority: 'high', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't2',  name: '配管耐圧試験',            assignee: '佐藤 美咲', location: 'A棟 第二配管室', startDate: '2026-04-01', endDate: '2026-05-20', progress: 100, status: 'done', priority: 'med', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't3',  name: '安全弁点検',              assignee: '鈴木 大輔', location: 'B棟',            startDate: '2026-05-10', endDate: '2026-06-25', progress: 88, status: 'in-progress', priority: 'med', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't4',  name: '計装盤更新',              assignee: '山田 花子', location: 'A棟 制御室',     startDate: '2026-08-01', endDate: '2026-11-15', progress: 20, status: 'in-progress', priority: 'high', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't5',  name: '触媒交換',                assignee: '伊藤 翔',   location: 'C棟 反応器',     startDate: '2026-09-10', endDate: '2026-10-20', progress: 0,  status: 'planned', priority: 'high', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
     ],
   },
   {
@@ -19,9 +19,9 @@ export const MOCK_PROJECTS = [
     name: '千葉LNG基地',
     collapsed: false,
     tasks: [
-      { id: 't6',  name: 'タンク内部検査',          assignee: '高橋 涼', location: 'T-3タンク',      start: '2026-06-01', end: '2026-08-10', progress: 45, status: 'in-progress', priority: 'high' },
-      { id: 't7',  name: '防爆配線工事',            assignee: '渡辺 隆', location: '共用エリア',    start: '2026-04-20', end: '2026-07-01', progress: 72, status: 'in-progress', priority: 'med' },
-      { id: 't8',  name: '消防設備点検',            assignee: '中村 恵', location: '全域',           start: '2026-03-15', end: '2026-04-10', progress: 100, status: 'done', priority: 'low' },
+      { id: 't6',  name: 'タンク内部検査',          assignee: '高橋 涼', location: 'T-3タンク',      startDate: '2026-06-01', endDate: '2026-08-10', progress: 45, status: 'in-progress', priority: 'high', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't7',  name: '防爆配線工事',            assignee: '渡辺 隆', location: '共用エリア',    startDate: '2026-04-20', endDate: '2026-07-01', progress: 72, status: 'in-progress', priority: 'med', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't8',  name: '消防設備点検',            assignee: '中村 恵', location: '全域',           startDate: '2026-03-15', endDate: '2026-04-10', progress: 100, status: 'done', priority: 'low', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
     ],
   },
   {
@@ -29,8 +29,8 @@ export const MOCK_PROJECTS = [
     name: '四日市製油所',
     collapsed: true,
     tasks: [
-      { id: 't9',  name: 'ボイラー定修',            assignee: '小林 剛', location: 'B-2',           start: '2026-07-01', end: '2026-09-30', progress: 15, status: 'in-progress', priority: 'high' },
-      { id: 't10', name: '電気設備点検',            assignee: '加藤 光', location: '受電室',         start: '2026-11-05', end: '2026-12-20', progress: 0, status: 'planned', priority: 'med' },
+      { id: 't9',  name: 'ボイラー定修',            assignee: '小林 剛', location: 'B-2',           startDate: '2026-07-01', endDate: '2026-09-30', progress: 15, status: 'in-progress', priority: 'high', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
+      { id: 't10', name: '電気設備点検',            assignee: '加藤 光', location: '受電室',         startDate: '2026-11-05', endDate: '2026-12-20', progress: 0, status: 'planned', priority: 'med', type: 'task', parentId: null, notes: '', color: '#dbeafe' },
     ],
   },
 ];
