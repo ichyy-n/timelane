@@ -57,6 +57,27 @@ export const dateUtil = {
     while (cur <= b) { res.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
     return res;
   },
+  daysBetween: (a, b) => {
+    const res = [];
+    let cur = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    while (cur <= b) { res.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+    return res;
+  },
+  quartersBetween: (a, b) => {
+    const res = [];
+    const qMonth = Math.floor(a.getMonth() / 3) * 3;
+    let cur = new Date(a.getFullYear(), qMonth, 1);
+    while (cur <= b) { res.push(new Date(cur)); cur.setMonth(cur.getMonth() + 3); }
+    return res;
+  },
+  yearsBetween: (a, b) => {
+    const res = [];
+    let cur = new Date(a.getFullYear(), 0, 1);
+    while (cur <= b) { res.push(new Date(cur)); cur.setFullYear(cur.getFullYear() + 1); }
+    return res;
+  },
+  fmtQuarter: (d) => `${d.getFullYear()} Q${Math.floor(d.getMonth() / 3) + 1}`,
+  fmtYear: (d) => `${d.getFullYear()}`,
   // 今日の日付（固定: デモ用）
   today: () => new Date(2026, 3, 18), // 2026/04/18
 };
