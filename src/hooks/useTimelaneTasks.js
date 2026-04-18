@@ -1,5 +1,37 @@
 import { useState, useCallback } from 'react';
-import { generateId } from '../data/sampleData';
+import { generateId, generateProjectId } from '../data/sampleData';
+
+// Migrate offset-based legacy tasks (startMonth/endMonth) to date-based (startDate/endDate).
+// Used during JSON import so old saves keep working.
+function convertLegacyTask(task, viewRange) {
+  if (task.startDate) return task;
+  let y = viewRange.startYear;
+  let m = viewRange.startMonth + task.startMonth;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+
+  let ey = viewRange.startYear;
+  let em = viewRange.startMonth + (task.endMonth ?? task.startMonth);
+  while (em > 12) { em -= 12; ey++; }
+  while (em < 1) { em += 12; ey--; }
+  const lastDay = new Date(ey, em, 0).getDate();
+  const endDate = `${ey}-${String(em).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  const converted = { ...task, startDate, endDate };
+  delete converted.startMonth;
+  delete converted.endMonth;
+
+  if (converted.dates) {
+    converted.dates = converted.dates.map((d) => {
+      if (d.date && d.date.length === 7) {
+        return { ...d, date: d.date + '-15' };
+      }
+      return d;
+    });
+  }
+  return converted;
+}
 
 // Collect all descendant task IDs of a given parent (used by deleteTask to drop subtrees).
 function getDescendantIds(tasks, parentId) {
@@ -101,5 +133,66 @@ export function useTimelaneTasks(initialProjects = [], { onChange } = {}) {
     [setProjects]
   );
 
-  return { projects, setProjects, addTask, editTask, deleteTask };
+  // Download current state as a JSON file. Host passes presentation flags (viewRange,
+  // colorMode, darkMode) since they live outside this hook.
+  const saveJson = useCallback(
+    ({ viewRange, colorMode, darkMode } = {}) => {
+      const data = { version: '2.0', projects, viewRange, colorMode, darkMode };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gantt-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [projects]
+  );
+
+  // Load JSON file from a file input event. Updates projects via setProjects, and
+  // hands viewRange/colorMode/darkMode (when present) back to the host via onMeta.
+  const loadJson = useCallback(
+    (event, currentViewRange, { onMeta } = {}) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.version === '2.0' && data.projects) {
+            const vr = data.viewRange || currentViewRange;
+            const convertedProjects = data.projects.map((proj) => ({
+              ...proj,
+              tasks: proj.tasks.map((t) => convertLegacyTask(t, vr)),
+            }));
+            setProjects(convertedProjects);
+            onMeta?.({
+              viewRange: data.viewRange,
+              colorMode: data.colorMode,
+              darkMode: data.darkMode,
+            });
+          } else if (data.version && data.project && data.tasks) {
+            const vr = data.viewRange || currentViewRange;
+            setProjects([
+              {
+                id: generateProjectId(),
+                name: data.project.name || 'Imported Project',
+                collapsed: false,
+                tasks: data.tasks.map((t) => convertLegacyTask(t, vr)),
+              },
+            ]);
+          } else {
+            alert('Invalid project file format.');
+          }
+        } catch {
+          alert('Failed to parse JSON file.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    },
+    [setProjects]
+  );
+
+  return { projects, setProjects, addTask, editTask, deleteTask, saveJson, loadJson };
 }
