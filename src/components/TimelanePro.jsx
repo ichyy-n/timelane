@@ -6,6 +6,8 @@ import {
   initials,
   PRIORITY_META,
 } from '../data/mockdata.js';
+import TaskModal from './TaskModal.jsx';
+import { generateId } from '../data/sampleData.js';
 
 // 案C: 情報密度高めのプロフェッショナル
 // - Asana/ClickUp系、サイドバー付き、詳細パネル、密度高め
@@ -16,6 +18,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
   const [projects, setProjects] = React.useState(MOCK_PROJECTS);
   const [hoverTaskId, setHoverTaskId] = React.useState(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState('t1');
+  const [modalState, setModalState] = React.useState({ open: false, task: null, projectId: null });
 
   const C = dark ? {
     bg: '#0f1419', panel: '#161b22', panelAlt: '#1a2029',
@@ -41,6 +44,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
 
   const rangeStart = new Date(2026, 2, 1);
   const rangeEnd = new Date(2027, 0, 31);
+  const viewRange = { startYear: 2026, startMonth: 3, endYear: 2027, endMonth: 1 };
   const totalDays = dateUtil.diffDays(rangeStart, rangeEnd);
   const axisUnits = granularity === 'week'
     ? dateUtil.weeksBetween(rangeStart, rangeEnd)
@@ -54,6 +58,64 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
     setProjects(projects.map(p => p.id === pid ? { ...p, collapsed: !p.collapsed } : p));
   };
 
+  const handleAddTask = (projectId) => {
+    setModalState({ open: true, task: null, projectId: projectId || projects[0]?.id });
+  };
+
+  const handleEditTask = (task, projectId) => {
+    setModalState({ open: true, task, projectId });
+  };
+
+  const handleModalClose = () => {
+    setModalState({ open: false, task: null, projectId: null });
+  };
+
+  const handleModalSave = (formData) => {
+    const targetProjectId = formData.projectId || modalState.projectId;
+    setProjects(prev =>
+      prev.map(proj => {
+        if (proj.id !== targetProjectId) {
+          if (modalState.task && proj.tasks.some(t => t.id === modalState.task.id)) {
+            return { ...proj, tasks: proj.tasks.filter(t => t.id !== modalState.task.id) };
+          }
+          return proj;
+        }
+        const { projectId: _pid, ...taskData } = formData;
+        if (modalState.task) {
+          const existsHere = proj.tasks.some(t => t.id === modalState.task.id);
+          if (existsHere) {
+            return { ...proj, tasks: proj.tasks.map(t =>
+              t.id === modalState.task.id ? { ...t, ...taskData } : t
+            )};
+          } else {
+            return { ...proj, tasks: [...proj.tasks, { ...modalState.task, ...taskData }] };
+          }
+        }
+        return { ...proj, tasks: [...proj.tasks, {
+          id: generateId(),
+          type: 'task',
+          parentId: null,
+          notes: '',
+          color: '#dbeafe',
+          progress: 0,
+          status: 'planned',
+          priority: 'med',
+          ...taskData,
+        }]};
+      })
+    );
+    handleModalClose();
+  };
+
+  const handleDeleteTask = (taskId, projectId) => {
+    if (!window.confirm('このタスクを削除しますか？')) return;
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      return { ...p, tasks: p.tasks.filter(t => t.id !== taskId) };
+    }));
+    setSelectedTaskId(null);
+  };
+
   const barPositionFor = (task) => {
     const ts = dateUtil.parse(task.startDate);
     const te = dateUtil.parse(task.endDate);
@@ -63,6 +125,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
   };
 
   const allTasks = projects.flatMap(p => p.tasks);
+  const allTasksFlat = projects.flatMap(p => p.tasks.map(t => ({ ...t, projectId: p.id })));
   const selectedTask = allTasks.find(t => t.id === selectedTaskId);
 
   // ワークロード（月別タスク数）
@@ -177,7 +240,7 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M2 6h8M2 9h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
             フィルタ
           </ButtonP>
-          <ButtonP C={C} primary>
+          <ButtonP C={C} primary onClick={() => handleAddTask(null)}>
             ＋ タスク追加
           </ButtonP>
         </div>
@@ -504,6 +567,18 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
             </div>
           </div>
 
+          {modalState.open && (
+            <TaskModal
+              task={modalState.task}
+              projects={projects}
+              currentProjectId={modalState.projectId}
+              onSave={handleModalSave}
+              onClose={handleModalClose}
+              viewRange={viewRange}
+              allTasks={allTasksFlat}
+            />
+          )}
+
           {/* 右詳細パネル */}
           {selectedTask && (
             <div style={{
@@ -567,7 +642,13 @@ export default function TimelanePro({ dark = false, granularity = 'month' }) {
                 borderTop: `1px solid ${C.borderSoft}`,
                 display: 'flex', gap: 6,
               }}>
-                <ButtonP C={C} small primary>編集</ButtonP>
+                <ButtonP C={C} small primary onClick={() => handleEditTask(selectedTask, projects.find(p => p.tasks.some(t => t.id === selectedTask.id))?.id)}>
+                  編集
+                </ButtonP>
+                <ButtonP C={C} small onClick={() => handleDeleteTask(selectedTask.id, projects.find(p => p.tasks.some(t => t.id === selectedTask.id))?.id)}
+                  style={{ color: '#cf222e', borderColor: '#cf222e' }}>
+                  削除
+                </ButtonP>
                 <ButtonP C={C} small>履歴</ButtonP>
                 <ButtonP C={C} small>•••</ButtonP>
               </div>
@@ -614,9 +695,9 @@ function SidebarItemP({ C, icon, active, muted, dot, children }) {
   );
 }
 
-function ButtonP({ C, primary, small, children }) {
+function ButtonP({ C, primary, small, children, onClick, style }) {
   return (
-    <button style={{
+    <button onClick={onClick} style={{
       background: primary ? C.accent : C.panel,
       color: primary ? '#fff' : C.text,
       border: primary ? 'none' : `1px solid ${C.border}`,
@@ -624,6 +705,7 @@ function ButtonP({ C, primary, small, children }) {
       borderRadius: 5, fontSize: small ? 11 : 12, fontWeight: 500,
       cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
       boxShadow: primary ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+      ...style,
     }}>{children}</button>
   );
 }
