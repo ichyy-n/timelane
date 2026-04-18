@@ -262,6 +262,30 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
             <div style={{ fontSize: 16, fontWeight: 600 }}>工事計画タイムライン</div>
           </div>
 
+          {/* 期間レンジコントロール */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 16, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <button onClick={() => panRange(-1)} title="前へ" style={iconBtn(C)}>◀</button>
+            <input type="date" value={toISODate(rangeStart)}
+              onChange={e => e.target.value && setRangeStart(new Date(e.target.value + 'T00:00:00'))}
+              style={dateInput(C)} />
+            <span style={{ fontSize: 11, color: C.textFaint }}>〜</span>
+            <input type="date" value={toISODate(rangeEnd)}
+              onChange={e => e.target.value && setRangeEnd(new Date(e.target.value + 'T00:00:00'))}
+              style={dateInput(C)} />
+            <button onClick={() => panRange(1)} title="次へ" style={iconBtn(C)}>▶</button>
+            <select onChange={e => { if (e.target.value) applyPreset(e.target.value); e.target.value = ''; }}
+              defaultValue="" style={{
+                background: C.panel, color: C.textSub, border: `1px solid ${C.border}`,
+                borderRadius: 4, fontSize: 11, padding: '3px 6px', cursor: 'pointer',
+              }}>
+              <option value="">プリセット…</option>
+              <option value="thisMonth">今月</option>
+              <option value="thisQuarter">今四半期</option>
+              <option value="thisYear">今年</option>
+              <option value="all">全期間</option>
+            </select>
+          </div>
+
           <div style={{ flex: 1 }}/>
 
           {/* 期間 */}
@@ -847,4 +871,21 @@ function DetailRowP({ C, label, children }) {
       <div style={{ fontSize: 12, color: C.text }}>{children}</div>
     </div>
   );
+}
+
+function iconBtn(C) {
+  return {
+    background: C.panel, color: C.textSub, border: `1px solid ${C.border}`,
+    borderRadius: 4, width: 22, height: 22, display: 'inline-flex',
+    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+    fontSize: 10, padding: 0,
+  };
+}
+
+function dateInput(C) {
+  return {
+    background: C.panel, color: C.text, border: `1px solid ${C.border}`,
+    borderRadius: 4, fontSize: 11, padding: '3px 6px',
+    fontFamily: 'inherit',
+  };
 }
