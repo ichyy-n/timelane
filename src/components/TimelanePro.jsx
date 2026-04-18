@@ -253,6 +253,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
         {/* ヘッダー */}
         <div style={{
           padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12,
+          flexWrap: 'wrap', rowGap: 10,
           borderBottom: `1px solid ${C.border}`, background: C.panel,
         }}>
           <div>
@@ -309,7 +310,7 @@ export default function TimelanePro({ dark = false, granularity: initialGranular
             })}
           </div>
 
-          <ButtonP C={C}>
+          <ButtonP C={C} onClick={recenterToToday}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
             今日
           </ButtonP>
